@@ -21,6 +21,8 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 // Chart instances
 let moistureTrendChart = null;
 let wateringFrequencyChart = null;
+let conservationUsageChart = null;
+let conservationPlotChart = null;
 
 // Available plots
 let availablePlots = [];
@@ -530,3 +532,336 @@ document.getElementById('refreshChartsBtn').addEventListener('click', async () =
 
 // Initial load - fetch plots first, then load analytics for first plot
 fetchPlots();
+
+// ========================================
+// WATER CONSERVATION ANALYTICS
+// ========================================
+
+/**
+ * Load water conservation data
+ */
+async function loadWaterConservationData() {
+    try {
+        // Show loading state
+        document.getElementById('conservationLoadingState').style.display = 'block';
+        document.getElementById('conservationErrorState').style.display = 'none';
+        document.getElementById('conservationDataDisplay').style.display = 'none';
+
+        const period = document.getElementById('conservationPeriod').value;
+        const waterCost = document.getElementById('conservationWaterCost').value;
+
+        const response = await fetch(
+            `${API_BASE_URL}/analytics/water-conservation?days=${period}&waterCostPerLiter=${waterCost}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to fetch data');
+        }
+
+        const data = result.data;
+
+        // Hide loading, show data
+        document.getElementById('conservationLoadingState').style.display = 'none';
+        document.getElementById('conservationDataDisplay').style.display = 'block';
+
+        // Update summary cards
+        updateConservationSummaryCards(data);
+
+        // Update configuration display
+        updateConservationConfigDisplay(data.configuration);
+
+        // Render charts
+        renderConservationUsageChart(data);
+        renderConservationPlotChart(data.plots);
+
+        // Update plot table
+        updateConservationPlotTable(data.plots);
+
+        console.log('Water Conservation Data:', data);
+
+    } catch (error) {
+        console.error('Error loading water conservation data:', error);
+        document.getElementById('conservationLoadingState').style.display = 'none';
+        document.getElementById('conservationErrorState').style.display = 'block';
+        document.getElementById('conservationErrorMessage').textContent = `Error: ${error.message}`;
+    }
+}
+
+/**
+ * Update conservation summary cards
+ */
+function updateConservationSummaryCards(data) {
+    document.getElementById('conservationTotalWaterSaved').textContent = 
+        data.totalWaterSaved.toLocaleString();
+    
+    document.getElementById('conservationTotalCostSaved').textContent = 
+        `${data.currency}${parseFloat(data.totalCostSaved).toLocaleString()}`;
+    
+    document.getElementById('conservationPercentageSaved').textContent = 
+        `${data.percentageSaved}%`;
+    
+    document.getElementById('conservationCO2Saved').textContent = 
+        `${parseFloat(data.co2Saved).toFixed(2)} kg`;
+}
+
+/**
+ * Update conservation configuration display
+ */
+function updateConservationConfigDisplay(config) {
+    const configDisplay = document.getElementById('conservationConfigDisplay');
+    configDisplay.innerHTML = `
+        <span class="badge bg-primary">
+            <i class="fas fa-calendar-alt"></i> ${config.traditionalFrequency}
+        </span>
+        <span class="badge bg-info">
+            <i class="fas fa-clock"></i> ${config.sessionDuration}
+        </span>
+        <span class="badge bg-success">
+            <i class="fas fa-tint"></i> ${config.flowRate}
+        </span>
+        <span class="badge bg-danger">
+            <i class="fas fa-exclamation-triangle"></i> Critical: ${config.criticalThreshold}
+        </span>
+        <span class="badge bg-warning text-dark">
+            <i class="fas fa-chart-line"></i> Optimal: ${config.optimalRange}
+        </span>
+    `;
+}
+
+/**
+ * Render conservation usage comparison chart
+ */
+function renderConservationUsageChart(data) {
+    const ctx = document.getElementById('conservationUsageChart').getContext('2d');
+    
+    // Destroy existing chart
+    if (conservationUsageChart) {
+        conservationUsageChart.destroy();
+    }
+
+    conservationUsageChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Smart System (Used)', 'Water Saved'],
+            datasets: [{
+                data: [data.totalSmartUse, data.totalWaterSaved],
+                backgroundColor: [
+                    'rgba(102, 126, 234, 0.8)',
+                    'rgba(67, 233, 123, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(102, 126, 234, 1)',
+                    'rgba(67, 233, 123, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: {
+                            family: 'Poppins',
+                            size: 14
+                        },
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        family: 'Poppins',
+                        size: 14
+                    },
+                    bodyFont: {
+                        family: 'Poppins',
+                        size: 12
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const percentage = ((value / data.totalTraditionalUse) * 100).toFixed(1);
+                            return `${label}: ${value.toLocaleString()} L (${percentage}%)`;
+                        }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: `Traditional: ${data.totalTraditionalUse.toLocaleString()} L`,
+                    font: {
+                        family: 'Poppins',
+                        size: 16
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Render per-plot savings bar chart
+ */
+function renderConservationPlotChart(plots) {
+    const ctx = document.getElementById('conservationPlotChart').getContext('2d');
+    
+    // Destroy existing chart
+    if (conservationPlotChart) {
+        conservationPlotChart.destroy();
+    }
+
+    // Prepare data (top 10 plots)
+    const topPlots = plots.slice(0, 10);
+    const labels = topPlots.map(p => p.plotName);
+    const waterSaved = topPlots.map(p => p.waterSaved);
+    
+    // Color based on savings amount
+    const colors = waterSaved.map(value => {
+        if (value > 1000) return 'rgba(67, 233, 123, 0.8)';
+        if (value > 500) return 'rgba(64, 172, 254, 0.8)';
+        return 'rgba(245, 87, 108, 0.8)';
+    });
+
+    conservationPlotChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Water Saved (Liters)',
+                data: waterSaved,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c.replace('0.8', '1')),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        family: 'Poppins',
+                        size: 14
+                    },
+                    bodyFont: {
+                        family: 'Poppins',
+                        size: 12
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.parsed.x.toLocaleString()} Liters Saved`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' L';
+                        },
+                        font: {
+                            family: 'Poppins'
+                        }
+                    }
+                },
+                y: {
+                    ticks: {
+                        font: {
+                            family: 'Poppins'
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Update conservation plot table
+ */
+function updateConservationPlotTable(plots) {
+    const tableBody = document.getElementById('conservationPlotTableBody');
+    tableBody.innerHTML = '';
+
+    if (plots.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                    No plot data available
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    plots.forEach(plot => {
+        const row = document.createElement('tr');
+        
+        // Efficiency badge color
+        let efficiencyClass = 'bg-danger';
+        if (plot.efficiencyIndex >= 80) efficiencyClass = 'bg-success';
+        else if (plot.efficiencyIndex >= 60) efficiencyClass = 'bg-warning';
+
+        // Percentage badge color
+        let percentageClass = 'bg-danger';
+        if (plot.percentageSaved >= 40) percentageClass = 'bg-success';
+        else if (plot.percentageSaved >= 20) percentageClass = 'bg-warning';
+
+        row.innerHTML = `
+            <td>
+                <strong>${plot.plotName}</strong>
+                <br>
+                <small class="text-muted">${plot.sensorId}</small>
+            </td>
+            <td>${plot.traditionalUse.toLocaleString()}</td>
+            <td>${plot.smartUse.toLocaleString()}</td>
+            <td><strong class="text-success">${plot.waterSaved.toLocaleString()}</strong></td>
+            <td>₱${parseFloat(plot.costSaved).toFixed(2)}</td>
+            <td>
+                <span class="badge bg-info">${plot.irrigationEvents}</span>
+            </td>
+            <td>
+                <span class="badge ${efficiencyClass}">${plot.efficiencyIndex}%</span>
+            </td>
+            <td>
+                <span class="badge ${percentageClass}">${plot.percentageSaved}%</span>
+            </td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+}
+
+// Water Conservation Event Listeners
+document.getElementById('loadConservationBtn').addEventListener('click', loadWaterConservationData);
+document.getElementById('conservationPeriod').addEventListener('change', () => {
+    // Auto-reload if data is already displayed
+    if (document.getElementById('conservationDataDisplay').style.display !== 'none') {
+        loadWaterConservationData();
+    }
+});

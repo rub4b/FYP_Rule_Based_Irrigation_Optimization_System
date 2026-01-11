@@ -3,7 +3,7 @@ const SensorData = require('../models/SensorData');
 const axios = require('axios');
 
 // GET /api/plots - Get all plots for the authenticated user with weather data
-exports.getAllPlots = async (req, res) => {
+exports.getAllPlots = async (req, res, next) => {
   try {
     const userId = req.user.id; // From auth middleware
 
@@ -13,9 +13,14 @@ exports.getAllPlots = async (req, res) => {
     // Enrich each plot with current moisture and weather data
     const enrichedPlots = await Promise.all(plots.map(async (plot) => {
       // Get latest sensor data
-      const latestSensorData = await SensorData.findOne({ sensor_id: plot.sensor_id })
-        .sort({ timestamp: -1 })
-        .limit(1);
+      let latestSensorData = null;
+      try {
+        latestSensorData = await SensorData.findOne({ sensor_id: plot.sensor_id })
+          .sort({ timestamp: -1 })
+          .limit(1);
+      } catch (err) {
+        console.warn(`Failed to fetch sensor data for plot ${plot._id}: ${err.message}`);
+      }
 
       const currentMoisture = latestSensorData ? latestSensorData.moisture_value : 0;
 
@@ -28,13 +33,16 @@ exports.getAllPlots = async (req, res) => {
       };
 
       try {
+        if (!plot.location) throw new Error('No location data');
+        
         const locationParts = plot.location.split(',').map(coord => parseFloat(coord.trim()));
         if (locationParts.length === 2 && !isNaN(locationParts[0]) && !isNaN(locationParts[1])) {
           const [lat, lng] = locationParts;
           
           // Fetch weather data from Open-Meteo with current and forecast data
+          // Set timeout to prevent hanging
           const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=precipitation_probability_max&timezone=auto`;
-          const weatherResponse = await axios.get(weatherUrl);
+          const weatherResponse = await axios.get(weatherUrl, { timeout: 3000 });
           
           const current = weatherResponse.data.current;
           const daily = weatherResponse.data.daily;
@@ -45,7 +53,8 @@ exports.getAllPlots = async (req, res) => {
           weather.precipitation_probability = daily?.precipitation_probability_max?.[0] || null;
         }
       } catch (weatherError) {
-        console.error(`Error fetching weather for plot ${plot._id}:`, weatherError.message);
+        // Log lightly, don't spam console if API is down
+        // console.warn(`Error fetching weather for plot ${plot._id}:`, weatherError.message);
         // Continue with null weather data
       }
 
@@ -66,33 +75,27 @@ exports.getAllPlots = async (req, res) => {
       plots: enrichedPlots
     });
   } catch (error) {
-    console.error('Error fetching plots:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch plots'
-    });
+    next(error);
   }
 };
 
 // POST /api/plots - Create a new plot
-exports.createPlot = async (req, res) => {
+exports.createPlot = async (req, res, next) => {
   try {
     const { name, crop_type, location, sensor_id } = req.body;
 
     // Validation: Ensure name is not empty
     if (!name || name.trim() === '') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Plot name is required and cannot be empty' 
-      });
+      const error = new Error('Plot name is required and cannot be empty');
+      error.statusCode = 400;
+      throw error;
     }
 
     // Validate sensor_id
     if (!sensor_id) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Sensor ID is required' 
-      });
+      const error = new Error('Sensor ID is required');
+      error.statusCode = 400;
+      throw error;
     }
 
     // Convert location object {lat, lng} to string format
@@ -100,12 +103,19 @@ exports.createPlot = async (req, res) => {
     if (location && location.lat !== undefined && location.lng !== undefined) {
       locationString = `${location.lat}, ${location.lng}`;
     } else {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Location with lat and lng is required' 
-      });
+       // If standard format is not sent, check if it's already a string or handle error
+       if (typeof location === 'string' && location.includes(',')) {
+         locationString = location;
+       } else {
+         const error = new Error('Location with lat and lng is required');
+         error.statusCode = 400;
+         throw error;
+       }
     }
 
+    // Check if sensor ID is already in use by another plot?
+    // Depending on logic, multiple plots might use same sensor or not. Assuming 1:1 for now, but not enforcing unique constraint at DB level blindly.
+    
     // Create new plot linked to the authenticated user
     const plot = new Plot({
       name: name.trim(),
@@ -123,16 +133,12 @@ exports.createPlot = async (req, res) => {
       plot 
     });
   } catch (error) {
-    console.error('Error creating plot:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to create plot' 
-    });
+    next(error);
   }
 };
 
 // DELETE /api/plots/:id - Delete a plot
-exports.deletePlot = async (req, res) => {
+exports.deletePlot = async (req, res, next) => {
   try {
     const plotId = req.params.id;
 
@@ -140,18 +146,16 @@ exports.deletePlot = async (req, res) => {
     const plot = await Plot.findById(plotId);
 
     if (!plot) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Plot not found' 
-      });
+      const error = new Error('Plot not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     // Check if the plot belongs to the authenticated user
     if (plot.farmer_id.toString() !== req.user.id) {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'You are not authorized to delete this plot' 
-      });
+      const error = new Error('You are not authorized to delete this plot');
+      error.statusCode = 403;
+      throw error;
     }
 
     // Delete the plot
@@ -162,16 +166,12 @@ exports.deletePlot = async (req, res) => {
       message: 'Plot deleted successfully' 
     });
   } catch (error) {
-    console.error('Error deleting plot:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to delete plot' 
-    });
+    next(error);
   }
 };
 
 // GET /api/plots/:id/advice - Get irrigation advice for a plot
-exports.getPlotAdvice = async (req, res) => {
+exports.getPlotAdvice = async (req, res, next) => {
   try {
     const plotId = req.params.id;
 
@@ -179,22 +179,24 @@ exports.getPlotAdvice = async (req, res) => {
     const plot = await Plot.findById(plotId);
 
     if (!plot) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Plot not found' 
-      });
+      const error = new Error('Plot not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     // Parse location from string format "lat, lng"
-    const locationParts = plot.location.split(',').map(coord => parseFloat(coord.trim()));
-    if (locationParts.length !== 2 || isNaN(locationParts[0]) || isNaN(locationParts[1])) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid plot location format' 
-      });
+    let lat, lng;
+    try {
+      const locationParts = plot.location.split(',').map(coord => parseFloat(coord.trim()));
+      if (locationParts.length !== 2 || isNaN(locationParts[0]) || isNaN(locationParts[1])) {
+         throw new Error('Invalid location');
+      }
+      [lat, lng] = locationParts;
+    } catch(e) {
+      const error = new Error('Invalid plot location format');
+      error.statusCode = 400;
+      throw error;
     }
-
-    const [lat, lng] = locationParts;
 
     // Get latest sensor data for this plot
     const latestSensorData = await SensorData.findOne({ sensor_id: plot.sensor_id })
@@ -202,10 +204,9 @@ exports.getPlotAdvice = async (req, res) => {
       .limit(1);
 
     if (!latestSensorData) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'No sensor data available for this plot' 
-      });
+      const error = new Error('No sensor data available for this plot');
+      error.statusCode = 404;
+      throw error;
     }
 
     const moisture = latestSensorData.moisture_value;
@@ -217,7 +218,8 @@ exports.getPlotAdvice = async (req, res) => {
     let rainAmount = 0;
 
     try {
-      const weatherResponse = await axios.get(weatherUrl);
+      // 3 second timeout for weather
+      const weatherResponse = await axios.get(weatherUrl, { timeout: 3000 });
       const dailyData = weatherResponse.data.daily;
       
       // Get today's forecast (first entry in the array)
@@ -229,7 +231,7 @@ exports.getPlotAdvice = async (req, res) => {
         rainAmount = dailyData.precipitation_sum[0];
       }
     } catch (weatherError) {
-      console.error('Error fetching weather data:', weatherError);
+      // console.error('Error fetching weather data:', weatherError);
       // Continue with default values (0) if weather API fails
     }
 
@@ -271,16 +273,12 @@ exports.getPlotAdvice = async (req, res) => {
       plot_name: plot.name
     });
   } catch (error) {
-    console.error('Error getting plot advice:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to get irrigation advice' 
-    });
+    next(error);
   }
 };
 
 // GET /api/plots/:id - Get a single plot by ID
-exports.getPlotById = async (req, res) => {
+exports.getPlotById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -288,10 +286,9 @@ exports.getPlotById = async (req, res) => {
     const plot = await Plot.findOne({ _id: id, farmer_id: userId });
 
     if (!plot) {
-      return res.status(404).json({
-        success: false,
-        error: 'Plot not found'
-      });
+      const error = new Error('Plot not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     res.json({
@@ -307,16 +304,12 @@ exports.getPlotById = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching plot:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch plot'
-    });
+    next(error);
   }
 };
 
 // PUT /api/plots/:id - Update a plot
-exports.updatePlot = async (req, res) => {
+exports.updatePlot = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -326,18 +319,16 @@ exports.updatePlot = async (req, res) => {
     const plot = await Plot.findOne({ _id: id, farmer_id: userId });
 
     if (!plot) {
-      return res.status(404).json({
-        success: false,
-        error: 'Plot not found'
-      });
+      const error = new Error('Plot not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     // Validate name is not empty
     if (!name || name.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Plot name is required and cannot be empty'
-      });
+      const error = new Error('Plot name is required and cannot be empty');
+      error.statusCode = 400;
+      throw error;
     }
 
     // Update plot fields
@@ -362,11 +353,7 @@ exports.updatePlot = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error updating plot:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update plot'
-    });
+    next(error);
   }
 };
 

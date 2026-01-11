@@ -2,15 +2,14 @@ const SensorData = require('../models/SensorData');
 const Plot = require('../models/Plot');
 
 // POST /api/sensors/sync
-exports.syncSensorData = async (req, res) => {
+exports.syncSensorData = async (req, res, next) => {
   try {
     const { sensor_id, readings } = req.body;
 
     if (!sensor_id || !readings || !Array.isArray(readings)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'sensor_id and readings array are required' 
-      });
+      const error = new Error('sensor_id and readings array are required');
+      error.statusCode = 400;
+      throw error;
     }
 
     // Calculate timestamps backwards from now (60-minute intervals)
@@ -20,12 +19,15 @@ exports.syncSensorData = async (req, res) => {
       const minutesBack = (readings.length - 1 - index) * 60;
       const timestamp = new Date(now.getTime() - minutesBack * 60 * 1000);
 
+      // Handle simple value or object input
+      const moistureVal = (typeof reading === 'object' && reading !== null) ? reading.moisture_value : reading;
+
       return {
         sensor_id,
-        moisture_value: reading.moisture_value || reading,
+        moisture_value: moistureVal,
         timestamp,
         sync_metadata: {
-          is_offline_sync: reading.is_offline_sync || true
+          is_offline_sync: (reading.is_offline_sync !== undefined) ? reading.is_offline_sync : true
         }
       };
     });
@@ -35,24 +37,19 @@ exports.syncSensorData = async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error syncing sensor data:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to sync sensor data' 
-    });
+    next(error);
   }
 };
 
 // POST /api/sensors/manual
-exports.manualSensorInput = async (req, res) => {
+exports.manualSensorInput = async (req, res, next) => {
   try {
     const { sensor_id, moisture_value } = req.body;
 
     if (!sensor_id || moisture_value === undefined) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'sensor_id and moisture_value are required' 
-      });
+      const error = new Error('sensor_id and moisture_value are required');
+      error.statusCode = 400;
+      throw error;
     }
 
     // Create new sensor data entry
@@ -79,16 +76,12 @@ exports.manualSensorInput = async (req, res) => {
       message: 'Manual sensor data saved successfully' 
     });
   } catch (error) {
-    console.error('Error saving manual sensor data:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to save manual sensor data' 
-    });
+    next(error);
   }
 };
 
 // GET /api/sensor/logs
-exports.getSensorLogs = async (req, res) => {
+exports.getSensorLogs = async (req, res, next) => {
   try {
     const { sensorId } = req.query;
     
@@ -106,10 +99,6 @@ exports.getSensorLogs = async (req, res) => {
       count: logs.length
     });
   } catch (error) {
-    console.error('Error fetching sensor logs:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch sensor logs' 
-    });
+    next(error);
   }
 };

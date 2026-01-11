@@ -71,13 +71,14 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Register form handler
+// Register form handler (only if on page with register form)
 const registerForm = document.getElementById('registerForm');
 const registerErrorMessage = document.getElementById('register-error-message');
 const registerErrorText = document.getElementById('register-error-text');
 
-registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
     
     // Hide previous errors
     registerErrorMessage.classList.add('d-none');
@@ -114,3 +115,4 @@ registerForm.addEventListener('submit', async (e) => {
         registerErrorMessage.classList.remove('d-none');
     }
 });
+}

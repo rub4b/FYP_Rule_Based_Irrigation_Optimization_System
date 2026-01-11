@@ -18,7 +18,13 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/backend_db
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB connected successfully'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+    console.error('----------------------------------------------------');
+    console.error('HINT: If you are using MongoDB Atlas, check if your Current IP Address is added to the Network Access Allowlist.');
+    console.error('HINT: Check if you have a stable internet connection.');
+    console.error('----------------------------------------------------');
+  });
 
 // API Routes
 app.get('/api', (req, res) => {
@@ -30,18 +36,22 @@ const authRoutes = require('./src/routes/authRoutes');
 const sensorRoutes = require('./src/routes/sensorRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const plotRoutes = require('./src/routes/plotRoutes');
+const analyticsRoutes = require('./src/routes/analyticsRoutes'); // Added Analytics
+const errorHandler = require('./src/middleware/errorHandler');
+const alertJob = require('./src/jobs/alertJob'); // Import Background Job
+
+// Start Background Jobs
+alertJob.start();
 
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/sensor', sensorRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/plots', plotRoutes);
+app.use('/api/analytics', analyticsRoutes); // Use Analytics Routes
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
-});
+app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;

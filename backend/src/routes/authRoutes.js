@@ -9,6 +9,12 @@ router.post('/register', authController.register);
 // POST /api/auth/login
 router.post('/login', authController.login);
 
+// POST /api/auth/forgotpassword
+router.post('/forgotpassword', authController.forgotPassword);
+
+// PUT /api/auth/resetpassword/:resettoken
+router.put('/resetpassword/:resettoken', authController.resetPassword);
+
 // GET /api/auth/profile - Get user profile (requires authentication)
 router.get('/profile', authMiddleware, authController.getProfile);
 

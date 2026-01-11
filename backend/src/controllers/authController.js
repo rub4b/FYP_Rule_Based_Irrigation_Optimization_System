@@ -1,39 +1,38 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto'); // Built-in node module
 const User = require('../models/User');
+const emailService = require('../services/emailService');
 
 // POST /api/auth/register
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   try {
     const { username, name, email, password, role } = req.body;
 
     // Validate required fields
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required' });
-    }
-    
-    if (!name) {
-      return res.status(400).json({ error: 'Full name is required' });
-    }
-    
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-    
-    if (!password) {
-      return res.status(400).json({ error: 'Password is required' });
+    if (!username || !name || !email || !password) {
+      const error = new Error('Please provide all required fields');
+      error.statusCode = 400;
+      throw error;
     }
 
+    // Check if username/email already exists is handled by mongoose duplicate key error in global handler
+    // But explicit checks can give better messages
+    
     // Check if username already exists
     const existingUsername = await User.findOne({ username });
     if (existingUsername) {
-      return res.status(400).json({ error: 'Username already exists' });
+      const error = new Error('Username already exists');
+      error.statusCode = 400;
+      throw error;
     }
     
     // Check if email already exists
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
-      return res.status(400).json({ error: 'Email already exists' });
+      const error = new Error('Email already exists');
+      error.statusCode = 400;
+      throw error;
     }
 
     // Hash password
@@ -50,6 +49,18 @@ exports.register = async (req, res) => {
 
     await user.save();
 
+    // Send Welcome Email
+    try {
+      await emailService.sendEmail(
+        user.email,
+        'Welcome to Aquametic Smart Farming!',
+        `Hello ${user.name},\n\nWelcome to Aquametic! Your account has been successfully created.\n\nUsername: ${user.username}\n\nYou can now log in to monitor your farm's moisture levels and receive automated irrigation advice.\n\nBest regards,\nThe Aquametic Team`
+      );
+    } catch (emailErr) {
+      console.error('Failed to send welcome email:', emailErr);
+      // Don't fail registration just because email failed
+    }
+
     res.status(201).json({ 
       success: true, 
       message: 'User registered successfully',
@@ -57,18 +68,19 @@ exports.register = async (req, res) => {
       username: user.username
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    next(error);
   }
 };
 
 // POST /api/auth/login
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username/Email and password are required' });
+      const error = new Error('Username/Email and password are required');
+      error.statusCode = 400;
+      throw error;
     }
 
     // Find user by username or email
@@ -80,13 +92,17 @@ exports.login = async (req, res) => {
     });
     
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      const error = new Error('Invalid credentials');
+      error.statusCode = 401;
+      throw error;
     }
 
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      const error = new Error('Invalid credentials');
+      error.statusCode = 401;
+      throw error;
     }
 
     // Generate JWT token
@@ -108,22 +124,20 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    next(error);
   }
 };
 
 // GET /api/auth/profile - Get user profile
-exports.getProfile = async (req, res) => {
+exports.getProfile = async (req, res, next) => {
   try {
     // req.user is set by auth middleware
     const user = await User.findById(req.user.id).select('-password');
     
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
-      });
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     res.json({
@@ -143,16 +157,12 @@ exports.getProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch profile' 
-    });
+    next(error);
   }
 };
 
 // PUT /api/auth/profile - Update user profile
-exports.updateProfile = async (req, res) => {
+exports.updateProfile = async (req, res, next) => {
   try {
     const { username, name, email, password, phone, farm_name, location, farm_size } = req.body;
     const userId = req.user.id;
@@ -160,10 +170,9 @@ exports.updateProfile = async (req, res) => {
     // Find the user
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
-      });
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     // Update username if provided
@@ -175,10 +184,9 @@ exports.updateProfile = async (req, res) => {
       });
       
       if (existingUser) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Username already taken' 
-        });
+        const error = new Error('Username already taken');
+        error.statusCode = 400;
+        throw error;
       }
       
       user.username = username;
@@ -198,10 +206,9 @@ exports.updateProfile = async (req, res) => {
       });
       
       if (existingEmail) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Email already taken' 
-        });
+        const error = new Error('Email already taken');
+        error.statusCode = 400;
+        throw error;
       }
       
       user.email = email;
@@ -216,10 +223,9 @@ exports.updateProfile = async (req, res) => {
     // Update password if provided (hash it before saving)
     if (password) {
       if (password.length < 6) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Password must be at least 6 characters long' 
-        });
+        const error = new Error('Password must be at least 6 characters long');
+        error.statusCode = 400;
+        throw error;
       }
       
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -245,23 +251,18 @@ exports.updateProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to update profile' 
-    });
+    next(error);
   }
 };
 
 // GET /api/auth/users - Get all users (admin only)
-exports.getAllUsers = async (req, res) => {
+exports.getAllUsers = async (req, res, next) => {
   try {
     // Check if user is admin
     if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. Admin privileges required.'
-      });
+      const error = new Error('Access denied. Admin privileges required.');
+      error.statusCode = 403;
+      throw error;
     }
 
     // Fetch all users, excluding password field
@@ -273,10 +274,134 @@ exports.getAllUsers = async (req, res) => {
       count: users.length
     });
   } catch (error) {
-    console.error('Get all users error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch users'
+    next(error);
+  }
+};
+
+// POST /api/auth/forgotpassword - Request password reset
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      const error = new Error('Please provide an email');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      const error = new Error('There is no user with that email');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Get reset token (random 20 hex characters)
+    const resetToken = crypto.randomBytes(20).toString('hex');
+
+    // Hash token and set to resetPasswordToken field
+    // In a real app, you would hash this before saving to DB for security
+    user.resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    // Set expire (30 minutes for better user experience)
+    user.resetPasswordExpire = Date.now() + 30 * 60 * 1000;
+
+    await user.save();
+
+    // Create reset URL
+    // Use FRONTEND_URL from environment or default to common frontend locations
+    const frontendUrl = process.env.FRONTEND_URL || 'http://127.0.0.1:5500/frontend';
+    const resetUrl = `${frontendUrl}/reset-password.html?token=${resetToken}`;
+    
+    console.log('Password reset requested for:', user.email);
+    console.log('Reset URL generated:', resetUrl);
+
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. \n\n Please click on the following link to reset your password: \n\n ${resetUrl}`;
+
+    try {
+      await emailService.sendEmail(
+        user.email,
+        'Password Reset Token',
+        message
+      );
+
+      res.status(200).json({ success: true, data: 'Email sent' });
+    } catch (err) {
+      console.error(err);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+
+      await user.save();
+
+      const error = new Error('Email could not be sent');
+      error.statusCode = 500;
+      throw error;
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/auth/resetpassword/:resettoken - Reset password
+exports.resetPassword = async (req, res, next) => {
+  try {
+    console.log('Reset password request received');
+    console.log('Token from URL:', req.params.resettoken);
+    
+    // Get hashed token
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(req.params.resettoken)
+      .digest('hex');
+    
+    console.log('Hashed token:', resetPasswordToken);
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() } // Check if not expired
     });
+
+    if (!user) {
+      console.log('No user found with this token or token expired');
+      const error = new Error('Invalid or expired reset token');
+      error.statusCode = 400;
+      throw error;
+    }
+    
+    console.log('User found:', user.email);
+
+    // Set new password
+    if (!req.body.password) {
+      const error = new Error('Please provide a new password');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Encrypt new password
+    user.password = await bcrypt.hash(req.body.password, 10);
+    
+    // Clear reset fields
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+    
+    // Optional: Send success email
+    await emailService.sendEmail(
+      user.email,
+      'Password Changed Successfully',
+      `Hello ${user.name},\n\nYour password has been successfully reset. You can now login with your new password.`
+    );
+
+    res.status(200).json({
+      success: true,
+      data: 'Password reset successful'
+    });
+  } catch (error) {
+    next(error);
   }
 };

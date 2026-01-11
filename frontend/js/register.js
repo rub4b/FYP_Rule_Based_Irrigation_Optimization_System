@@ -27,37 +27,32 @@ registerForm.addEventListener('submit', async (e) => {
     
     // Validate username
     if (!username) {
-        const msg = 'Username is required!';
-        errorText.textContent = msg;
-        errorMessage.classList.remove('d-none');
-        if (toast) toast.error(msg);
+        showError('Username is required!');
         return;
     }
     
     // Validate username format (alphanumeric and underscore only)
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        const msg = 'Username can only contain letters, numbers, and underscores!';
-        errorText.textContent = msg;
-        errorMessage.classList.remove('d-none');
-        if (toast) toast.error(msg);
+        showError('Username can only contain letters, numbers, and underscores!');
+        return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showError('Please enter a valid email address!');
+        return;
+    }
+    
+    // Validate password strength
+    if (password.length < 6) {
+        showError('Password must be at least 6 characters long!');
         return;
     }
     
     // Validate passwords match
     if (password !== confirmPassword) {
-        const msg = 'Passwords do not match!';
-        errorText.textContent = msg;
-        errorMessage.classList.remove('d-none');
-        if (toast) toast.error(msg);
-        return;
-    }
-    
-    // Validate password length
-    if (password.length < 6) {
-        const msg = 'Password must be at least 6 characters long!';
-        errorText.textContent = msg;
-        errorMessage.classList.remove('d-none');
-        if (toast) toast.error(msg);
+        showError('Passwords do not match!');
         return;
     }
     
@@ -68,6 +63,12 @@ registerForm.addEventListener('submit', async (e) => {
     submitBtn.disabled = true;
     
     try {
+        // Wrapper for axios to support timeout
+        const source = axios.CancelToken.source();
+        const timeout = setTimeout(() => {
+            source.cancel('Request timed out');
+        }, 10000); // 10 seconds timeout
+
         // Make API call to register endpoint
         const response = await axios.post('http://localhost:5000/api/auth/register', {
             username: username,
@@ -75,7 +76,11 @@ registerForm.addEventListener('submit', async (e) => {
             email: email,
             password: password,
             role: role // Use selected role
+        }, {
+            cancelToken: source.token
         });
+        
+        clearTimeout(timeout);
         
         if (response.data.success) {
             // Show success message with SweetAlert2
@@ -106,20 +111,41 @@ registerForm.addEventListener('submit', async (e) => {
                 // Redirect to login page
                 setTimeout(() => {
                     window.location.href = 'index.html';
-                }, 500);
+                }, 1000);
             });
         }
     } catch (error) {
-        // Restore button state
+        console.error('Registration error:', error);
+        
+        let msg = 'Registration failed. Please try again.';
+        
+        if (axios.isCancel(error)) {
+            msg = 'Request timed out. Please check your connection.';
+        } else if (error.response) {
+            // The request was made and the server responded with a status code
+            // that falls out of the range of 2xx
+            msg = error.response.data.error || 'Registration failed.';
+        } else if (error.request) {
+            // The request was made but no response was received
+            msg = 'No response from server. Check your internet connection.';
+        }
+        
+        showError(msg);
+    } finally {
+        // Reset button state
         submitBtn.innerHTML = originalBtnText;
         submitBtn.disabled = false;
-        
-        // Handle errors
-        const errorMsg = error.response?.data?.error || error.message || 'Registration failed. Please try again.';
-        errorText.textContent = errorMsg;
-        errorMessage.classList.remove('d-none');
-        
-        // Show error toast
-        if (toast) toast.error(errorMsg);
     }
 });
+
+function showError(msg) {
+    errorText.textContent = msg;
+    errorMessage.classList.remove('d-none');
+    if (toast) toast.error(msg);
+    
+    // Shake animation for error
+    errorMessage.classList.add('animate__animated', 'animate__shakeX');
+    setTimeout(() => {
+        errorMessage.classList.remove('animate__animated', 'animate__shakeX');
+    }, 1000);
+}

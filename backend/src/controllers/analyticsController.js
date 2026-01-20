@@ -91,21 +91,56 @@ exports.getMoistureTrends = async (req, res, next) => {
   }
 };
 
-// GET /api/analytics/water-conservation
-// COMPLEXITY: Water Savings Calculation & Environmental Impact Analysis
-exports.getWaterConservation = async (req, res, next) => {
+// GET /api/analytics/cost-savings
+// COMPLEXITY: Operational Cost Savings Calculation (Fuel, Electricity, Labor)
+exports.getCostSavings = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { days = 30, waterCostPerLiter = 0.05 } = req.query;
+    const { 
+      days = 30,
+      pumpType = 'diesel', // 'diesel', 'electric', or 'both'
+      dieselCostPerLiter = 2.05, // RM per liter
+      electricityCostPerKwh = 0.571, // RM per kWh
+      pumpPowerKw = 3, // Pump motor power rating in kW
+      laborCostPerHour = 15, // RM per hour
+      pumpEfficiency = 0.75 // Pump efficiency factor (75%)
+    } = req.query;
 
     // Configuration (based on agricultural research standards)
-    const TRADITIONAL_FREQUENCY_PER_WEEK = 3;
-    const SESSION_DURATION_MINUTES = 30;
-    const FLOW_RATE_LITERS_PER_MIN = 15;
-    const CO2_PER_LITER = 0.0004; // kg (water treatment carbon footprint)
-    const CRITICAL_MOISTURE_THRESHOLD = 20;
+    // Traditional irrigation: Assumes scheduled watering regardless of need
+    const TRADITIONAL_FREQUENCY_PER_WEEK = 3; // 3 times per week
+    const TRADITIONAL_DURATION_HOURS = 2; // 2 hours per session
+    
+    // Crop-specific water requirements (liters per hour per hectare)
+    // Based on agricultural research: water depth needed × area
+    const CROP_WATER_RATES = {
+      'rice': 400000,      // Rice paddies need 150-200mm depth = ~400m³/hour/hectare (highest)
+      'wheat': 200000,     // Wheat needs moderate water = ~200m³/hour/hectare
+      'corn': 250000,      // Corn/Maize needs ~250m³/hour/hectare
+      'vegetable': 180000, // Vegetables need less = ~180m³/hour/hectare
+      'sugarcane': 350000, // Sugarcane needs high water = ~350m³/hour/hectare
+      'cotton': 220000,    // Cotton moderate = ~220m³/hour/hectare
+      'soybean': 200000,   // Soybean moderate = ~200m³/hour/hectare
+      'default': 250000    // Default for unspecified crops = ~250m³/hour/hectare
+    };
+    
+    // Energy consumption constants
+    // Diesel pump typically consumes 0.25-0.35 liters per hour per kW
+    const DIESEL_CONSUMPTION_PER_KW_PER_HOUR = 0.3; // liters
+    // Electric pump uses rated power directly
+    // Water pumping CO2 footprint (pumping energy)
+    const CO2_PER_KWH = 0.694; // kg CO2 per kWh (Malaysia grid average)
+    const CO2_PER_LITER_DIESEL = 2.68; // kg CO2 per liter of diesel
+    
+    const CRITICAL_MOISTURE_THRESHOLD = 20; // Below this = urgent irrigation needed
     const OPTIMAL_MOISTURE_MIN = 40;
     const OPTIMAL_MOISTURE_MAX = 70;
+    
+    // Smart system: Only irrigates when moisture drops, then brings back to optimal
+    const SMART_IRRIGATION_DURATION_HOURS = 1.5; // Shorter sessions, targeted watering
+    
+    // Conversion factor
+    const ACRES_TO_HECTARES = 0.404686; // 1 acre = 0.404686 hectares
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(days));
@@ -121,8 +156,11 @@ exports.getWaterConservation = async (req, res, next) => {
         message: 'No plots found',
         data: {
           period: `last_${days}_days`,
-          totalWaterSaved: 0,
+          totalPumpHoursSaved: 0,
           totalCostSaved: 0,
+          totalFuelSaved: 0,
+          totalElectricitySaved: 0,
+          totalLaborHoursSaved: 0,
           percentageSaved: 0,
           co2Saved: 0,
           plots: []
@@ -132,21 +170,56 @@ exports.getWaterConservation = async (req, res, next) => {
 
     const sensorIds = userPlots.map(p => p.sensor_id).filter(id => id);
 
-    // Calculate traditional water usage
-    const weeksInPeriod = parseInt(days) / 7;
-    const traditionalWaterPerPlot = 
-      TRADITIONAL_FREQUENCY_PER_WEEK * 
-      SESSION_DURATION_MINUTES * 
-      FLOW_RATE_LITERS_PER_MIN * 
-      weeksInPeriod;
+    // Get full plot details including size and crop type
+    const plotsWithSize = await Plot.find({ farmer_id: userId })
+      .select('name sensor_id size_acres crop_type')
+      .lean();
 
     const plotResults = [];
+    let totalTraditionalPumpHours = 0;
+    let totalSmartPumpHours = 0;
     let totalTraditionalUse = 0;
     let totalSmartUse = 0;
 
     // Analyze each plot
-    for (const plot of userPlots) {
+    for (const plot of plotsWithSize) {
       if (!plot.sensor_id) continue;
+
+      // Get plot size in acres and convert to hectares for calculation
+      const plotSizeAcres = plot.size_acres || 2.5; // Default 2.5 acres
+      const plotSizeHectares = plotSizeAcres * ACRES_TO_HECTARES; // Convert to hectares
+      
+      // Get crop-specific water rate (match case-insensitive)
+      const cropType = (plot.crop_type || 'default').toLowerCase();
+      let waterRatePerHectarePerHour = CROP_WATER_RATES.default;
+      
+      // Check for matching crop type
+      for (const [crop, rate] of Object.entries(CROP_WATER_RATES)) {
+        if (cropType.includes(crop)) {
+          waterRatePerHectarePerHour = rate;
+          break;
+        }
+      }
+      
+      /* TRADITIONAL IRRIGATION CALCULATION:
+       * Formula: Frequency × Duration × Water_Rate × Plot_Size × Time_Period
+       * 
+       * Example for 5-acre (2.02 hectare) rice field over 30 days:
+       * - Traditional: 3 times/week × 2 hours × 400,000 L/hr/ha × 2.02 ha × 4.3 weeks
+       *   = 3 × 2 × 400,000 × 2.02 × 4.3 = 20.8 MILLION liters
+       * 
+       * This represents scheduled irrigation regardless of soil moisture
+       */
+      const weeksInPeriod = parseInt(days) / 7;
+      const traditionalPumpHours = 
+        TRADITIONAL_FREQUENCY_PER_WEEK * 
+        TRADITIONAL_DURATION_HOURS * 
+        weeksInPeriod;
+      
+      const traditionalWaterPerPlot = 
+        traditionalPumpHours * 
+        waterRatePerHectarePerHour * 
+        plotSizeHectares;
 
       // Get sensor data for this plot
       const sensorData = await SensorData.find({
@@ -155,79 +228,210 @@ exports.getWaterConservation = async (req, res, next) => {
       }).sort({ timestamp: 1 }).lean();
 
       if (sensorData.length === 0) {
+        // No sensor data - calculate theoretical savings
+        const pumpHoursSaved = traditionalPumpHours;
+        const waterVolumeSaved = traditionalWaterPerPlot;
+        
+        // Calculate costs based on pump type
+        let fuelSaved = 0;
+        let electricitySaved = 0;
+        let fuelCost = 0;
+        let electricityCost = 0;
+        
+        if (pumpType === 'diesel' || pumpType === 'both') {
+          fuelSaved = pumpHoursSaved * parseFloat(pumpPowerKw) * DIESEL_CONSUMPTION_PER_KW_PER_HOUR;
+          fuelCost = fuelSaved * parseFloat(dieselCostPerLiter);
+        }
+        if (pumpType === 'electric' || pumpType === 'both') {
+          electricitySaved = pumpHoursSaved * parseFloat(pumpPowerKw);
+          electricityCost = electricitySaved * parseFloat(electricityCostPerKwh);
+        }
+        
+        const laborCost = pumpHoursSaved * parseFloat(laborCostPerHour);
+        const maintenanceCost = (fuelCost + electricityCost) * 0.1; // 10% of energy costs
+        const totalCostSaved = fuelCost + electricityCost + laborCost + maintenanceCost;
+        
         plotResults.push({
           plotId: plot._id,
           plotName: plot.name,
           sensorId: plot.sensor_id,
-          traditionalUse: Math.round(traditionalWaterPerPlot),
-          smartUse: 0,
-          waterSaved: Math.round(traditionalWaterPerPlot),
-          costSaved: (traditionalWaterPerPlot * parseFloat(waterCostPerLiter)).toFixed(2),
+          sizeAcres: plotSizeAcres,
+          sizeHectares: plotSizeHectares,
+          cropType: plot.crop_type || 'Not specified',
+          waterRateUsed: waterRatePerHectarePerHour,
+          traditionalPumpHours: Math.round(traditionalPumpHours * 10) / 10,
+          smartPumpHours: 0,
+          pumpHoursSaved: Math.round(pumpHoursSaved * 10) / 10,
+          traditionalWaterUse: Math.round(traditionalWaterPerPlot),
+          smartWaterUse: 0,
+          waterVolumeSaved: Math.round(waterVolumeSaved),
+          fuelSaved: Math.round(fuelSaved * 10) / 10,
+          electricitySaved: Math.round(electricitySaved * 10) / 10,
+          laborHoursSaved: Math.round(pumpHoursSaved * 10) / 10,
+          costBreakdown: {
+            fuelCost: fuelCost.toFixed(2),
+            electricityCost: electricityCost.toFixed(2),
+            laborCost: laborCost.toFixed(2),
+            maintenanceCost: maintenanceCost.toFixed(2)
+          },
+          totalCostSaved: totalCostSaved.toFixed(2),
           irrigationEvents: 0,
           efficiencyIndex: 0,
           percentageSaved: 100
         });
+        totalTraditionalPumpHours += traditionalPumpHours;
         totalTraditionalUse += traditionalWaterPerPlot;
         continue;
       }
 
-      // Count irrigation events (moisture drops below threshold)
+      // Smart irrigation: Count distinct irrigation events (not every reading!)
+      // Group readings by day, then check if ANY reading that day was below threshold
+      const dailyData = {};
+      for (const reading of sensorData) {
+        const date = reading.timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
+        if (!dailyData[date]) {
+          dailyData[date] = { readings: [], minMoisture: 100 };
+        }
+        dailyData[date].readings.push(reading.moisture_value);
+        dailyData[date].minMoisture = Math.min(dailyData[date].minMoisture, reading.moisture_value);
+      }
+
+      // Count irrigation events: Only 1 event per day if ANY reading was critical
       let irrigationEvents = 0;
       let daysInOptimalRange = 0;
-
-      for (let i = 0; i < sensorData.length; i++) {
-        const moisture = sensorData[i].moisture_value;
+      
+      for (const date in dailyData) {
+        const dayData = dailyData[date];
         
-        // Count critical events (would trigger irrigation)
-        if (moisture < CRITICAL_MOISTURE_THRESHOLD) {
+        // If the day's minimum moisture was critical, count as 1 irrigation event
+        if (dayData.minMoisture < CRITICAL_MOISTURE_THRESHOLD) {
           irrigationEvents++;
         }
-
-        // Count days in optimal range
-        if (moisture >= OPTIMAL_MOISTURE_MIN && moisture <= OPTIMAL_MOISTURE_MAX) {
+        
+        // If average moisture for the day was optimal, count it
+        const avgMoisture = dayData.readings.reduce((a, b) => a + b, 0) / dayData.readings.length;
+        if (avgMoisture >= OPTIMAL_MOISTURE_MIN && avgMoisture <= OPTIMAL_MOISTURE_MAX) {
           daysInOptimalRange++;
         }
       }
 
-      // Smart water usage based on actual irrigation needs
-      const smartWaterUse = 
-        irrigationEvents * 
-        SESSION_DURATION_MINUTES * 
-        FLOW_RATE_LITERS_PER_MIN;
+      /* SMART IRRIGATION CALCULATION:
+       * Formula: Irrigation_Events × Duration × Water_Rate × Plot_Size
+       * 
+       * Example for same 5-acre rice field with 5 critical moisture events:
+       * - Smart: 5 events × 1.5 hours × 400,000 L/hr/ha × 2.02 ha
+       *   = 5 × 1.5 × 400,000 × 2.02 = 6.06 MILLION liters
+       * 
+       * COST SAVINGS = (Traditional Pump Hours - Smart Pump Hours) × Operational Costs
+       *   Traditional: 25.7 hours, Smart: 7.5 hours = 18.2 hours saved (71% reduction)
+       * 
+       * Smart system only irrigates when soil moisture drops below 20%,
+       * resulting in fewer but more targeted irrigation events and less pump operation.
+       */
+      const smartPumpHours = irrigationEvents * SMART_IRRIGATION_DURATION_HOURS;
+      const smartWaterUse = smartPumpHours * waterRatePerHectarePerHour * plotSizeHectares;
 
-      const waterSaved = traditionalWaterPerPlot - smartWaterUse;
-      const costSaved = waterSaved * parseFloat(waterCostPerLiter);
-      const efficiencyIndex = sensorData.length > 0 
-        ? Math.round((daysInOptimalRange / sensorData.length) * 100) 
+      const pumpHoursSaved = traditionalPumpHours - smartPumpHours;
+      const waterVolumeSaved = traditionalWaterPerPlot - smartWaterUse;
+      
+      // Calculate costs based on pump type
+      let fuelSaved = 0;
+      let electricitySaved = 0;
+      let fuelCost = 0;
+      let electricityCost = 0;
+      
+      if (pumpType === 'diesel' || pumpType === 'both') {
+        fuelSaved = pumpHoursSaved * parseFloat(pumpPowerKw) * DIESEL_CONSUMPTION_PER_KW_PER_HOUR;
+        fuelCost = fuelSaved * parseFloat(dieselCostPerLiter);
+      }
+      if (pumpType === 'electric' || pumpType === 'both') {
+        electricitySaved = pumpHoursSaved * parseFloat(pumpPowerKw);
+        electricityCost = electricitySaved * parseFloat(electricityCostPerKwh);
+      }
+      
+      const laborCost = pumpHoursSaved * parseFloat(laborCostPerHour);
+      const maintenanceCost = (fuelCost + electricityCost) * 0.1; // 10% of energy costs
+      const totalCostSaved = fuelCost + electricityCost + laborCost + maintenanceCost;
+      
+      const totalDays = Object.keys(dailyData).length;
+      const efficiencyIndex = totalDays > 0
+        ? Math.round((daysInOptimalRange / totalDays) * 100) 
         : 0;
-      const percentageSaved = traditionalWaterPerPlot > 0
-        ? Math.round((waterSaved / traditionalWaterPerPlot) * 100)
+      const percentageSaved = traditionalPumpHours > 0
+        ? Math.round((pumpHoursSaved / traditionalPumpHours) * 100)
         : 0;
 
       plotResults.push({
         plotId: plot._id,
         plotName: plot.name,
         sensorId: plot.sensor_id,
-        traditionalUse: Math.round(traditionalWaterPerPlot),
-        smartUse: Math.round(smartWaterUse),
-        waterSaved: Math.round(waterSaved),
-        costSaved: costSaved.toFixed(2),
+        sizeAcres: plotSizeAcres,
+        sizeHectares: plotSizeHectares.toFixed(2),
+        cropType: plot.crop_type || 'Not specified',
+        waterRateUsed: waterRatePerHectarePerHour,
+        traditionalPumpHours: Math.round(traditionalPumpHours * 10) / 10,
+        smartPumpHours: Math.round(smartPumpHours * 10) / 10,
+        pumpHoursSaved: Math.round(pumpHoursSaved * 10) / 10,
+        traditionalWaterUse: Math.round(traditionalWaterPerPlot),
+        smartWaterUse: Math.round(smartWaterUse),
+        waterVolumeSaved: Math.round(waterVolumeSaved),
+        fuelSaved: Math.round(fuelSaved * 10) / 10,
+        electricitySaved: Math.round(electricitySaved * 10) / 10,
+        laborHoursSaved: Math.round(pumpHoursSaved * 10) / 10,
+        costBreakdown: {
+          fuelCost: fuelCost.toFixed(2),
+          electricityCost: electricityCost.toFixed(2),
+          laborCost: laborCost.toFixed(2),
+          maintenanceCost: maintenanceCost.toFixed(2)
+        },
+        totalCostSaved: totalCostSaved.toFixed(2),
         irrigationEvents: irrigationEvents,
         efficiencyIndex: efficiencyIndex,
         percentageSaved: percentageSaved,
-        readingsCount: sensorData.length
+        readingsCount: sensorData.length,
+        daysMonitored: totalDays
       });
 
+      totalTraditionalPumpHours += traditionalPumpHours;
+      totalSmartPumpHours += smartPumpHours;
       totalTraditionalUse += traditionalWaterPerPlot;
       totalSmartUse += smartWaterUse;
     }
 
     // Calculate totals
-    const totalWaterSaved = totalTraditionalUse - totalSmartUse;
-    const totalCostSaved = totalWaterSaved * parseFloat(waterCostPerLiter);
-    const co2Saved = totalWaterSaved * CO2_PER_LITER;
-    const percentageSaved = totalTraditionalUse > 0
-      ? Math.round((totalWaterSaved / totalTraditionalUse) * 100)
+    const totalPumpHoursSaved = totalTraditionalPumpHours - totalSmartPumpHours;
+    const totalWaterVolumeSaved = totalTraditionalUse - totalSmartUse;
+    
+    // Calculate total costs based on pump type
+    let totalFuelSaved = 0;
+    let totalElectricitySaved = 0;
+    let totalFuelCost = 0;
+    let totalElectricityCost = 0;
+    
+    if (pumpType === 'diesel' || pumpType === 'both') {
+      totalFuelSaved = totalPumpHoursSaved * parseFloat(pumpPowerKw) * DIESEL_CONSUMPTION_PER_KW_PER_HOUR;
+      totalFuelCost = totalFuelSaved * parseFloat(dieselCostPerLiter);
+    }
+    if (pumpType === 'electric' || pumpType === 'both') {
+      totalElectricitySaved = totalPumpHoursSaved * parseFloat(pumpPowerKw);
+      totalElectricityCost = totalElectricitySaved * parseFloat(electricityCostPerKwh);
+    }
+    
+    const totalLaborCost = totalPumpHoursSaved * parseFloat(laborCostPerHour);
+    const totalMaintenanceCost = (totalFuelCost + totalElectricityCost) * 0.1;
+    const totalCostSaved = totalFuelCost + totalElectricityCost + totalLaborCost + totalMaintenanceCost;
+    
+    // Calculate CO2 savings
+    let co2Saved = 0;
+    if (pumpType === 'diesel' || pumpType === 'both') {
+      co2Saved += totalFuelSaved * CO2_PER_LITER_DIESEL;
+    }
+    if (pumpType === 'electric' || pumpType === 'both') {
+      co2Saved += totalElectricitySaved * CO2_PER_KWH;
+    }
+    
+    const percentageSaved = totalTraditionalPumpHours > 0
+      ? Math.round((totalPumpHoursSaved / totalTraditionalPumpHours) * 100)
       : 0;
 
     res.json({
@@ -235,21 +439,41 @@ exports.getWaterConservation = async (req, res, next) => {
       data: {
         period: `last_${days}_days`,
         daysAnalyzed: parseInt(days),
-        totalTraditionalUse: Math.round(totalTraditionalUse),
-        totalSmartUse: Math.round(totalSmartUse),
-        totalWaterSaved: Math.round(totalWaterSaved),
+        pumpType: pumpType,
+        totalTraditionalPumpHours: Math.round(totalTraditionalPumpHours * 10) / 10,
+        totalSmartPumpHours: Math.round(totalSmartPumpHours * 10) / 10,
+        totalPumpHoursSaved: Math.round(totalPumpHoursSaved * 10) / 10,
+        totalTraditionalWaterUse: Math.round(totalTraditionalUse),
+        totalSmartWaterUse: Math.round(totalSmartUse),
+        totalWaterVolumeSaved: Math.round(totalWaterVolumeSaved),
+        totalFuelSaved: Math.round(totalFuelSaved * 10) / 10,
+        totalElectricitySaved: Math.round(totalElectricitySaved * 10) / 10,
+        totalLaborHoursSaved: Math.round(totalPumpHoursSaved * 10) / 10,
+        costBreakdown: {
+          fuelCost: totalFuelCost.toFixed(2),
+          electricityCost: totalElectricityCost.toFixed(2),
+          laborCost: totalLaborCost.toFixed(2),
+          maintenanceCost: totalMaintenanceCost.toFixed(2)
+        },
         totalCostSaved: totalCostSaved.toFixed(2),
         percentageSaved: percentageSaved,
         co2Saved: co2Saved.toFixed(3),
-        currency: '₱',
-        waterCostPerLiter: parseFloat(waterCostPerLiter),
-        plots: plotResults.sort((a, b) => b.waterSaved - a.waterSaved), // Sort by savings
+        currency: 'RM',
+        plots: plotResults.sort((a, b) => parseFloat(b.totalCostSaved) - parseFloat(a.totalCostSaved)), // Sort by cost savings
         configuration: {
           traditionalFrequency: `${TRADITIONAL_FREQUENCY_PER_WEEK}x per week`,
-          sessionDuration: `${SESSION_DURATION_MINUTES} minutes`,
-          flowRate: `${FLOW_RATE_LITERS_PER_MIN} L/min`,
+          traditionalDuration: `${TRADITIONAL_DURATION_HOURS} hours per session`,
+          smartDuration: `${SMART_IRRIGATION_DURATION_HOURS} hours per session`,
+          waterRatePerHectare: 'Crop-specific (180k-400k L/hour/hectare)',
+          pumpPowerKw: `${pumpPowerKw} kW`,
+          dieselConsumption: `${DIESEL_CONSUMPTION_PER_KW_PER_HOUR} L/kW/hour`,
           criticalThreshold: `${CRITICAL_MOISTURE_THRESHOLD}%`,
-          optimalRange: `${OPTIMAL_MOISTURE_MIN}-${OPTIMAL_MOISTURE_MAX}%`
+          optimalRange: `${OPTIMAL_MOISTURE_MIN}-${OPTIMAL_MOISTURE_MAX}%`,
+          costs: {
+            dieselPerLiter: `RM ${dieselCostPerLiter}`,
+            electricityPerKwh: `RM ${electricityCostPerKwh}`,
+            laborPerHour: `RM ${laborCostPerHour}`
+          }
         }
       }
     });
@@ -257,3 +481,5 @@ exports.getWaterConservation = async (req, res, next) => {
     next(error);
   }
 };
+// Backward compatibility alias for old endpoint
+exports.getWaterConservation = exports.getCostSavings;

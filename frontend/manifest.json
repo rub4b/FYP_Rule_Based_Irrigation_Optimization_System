@@ -2,7 +2,7 @@
   "name": "Farm Management System",
   "short_name": "FarmMS",
   "description": "Farm Management System with Sensor Monitoring",
-  "start_url": "/",
+  "start_url": "/auth/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#667eea",

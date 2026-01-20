@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/env');
 
 // Middleware to verify JWT token and attach user info to request
 const authMiddleware = (req, res, next) => {
@@ -13,7 +14,7 @@ const authMiddleware = (req, res, next) => {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, JWT_SECRET);
     
     // Attach user info to request
     req.user = {

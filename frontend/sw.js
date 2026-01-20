@@ -1,15 +1,16 @@
-const CACHE_NAME = 'farm-management-v1';
+const CACHE_NAME = 'farm-management-v2';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/farmer.html',
-  '/admin.html',
-  '/css/style.css',
-  '/js/api.js',
-  '/js/auth.js',
-  '/js/login.js',
-  '/js/farmer.js',
-  '/js/admin.js',
+  '/auth/index.html',
+  '/farmer/dashboard.html',
+  '/admin/dashboard.html',
+  '/shared/css/style.css',
+  '/shared/css/chic-styles.css',
+  '/shared/css/auth-styles.css',
+  '/shared/js/api.js',
+  '/shared/js/auth.js',
+  '/auth/login.js',
+  '/farmer/js/farmer.js',
+  '/admin/js/admin.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
 
@@ -76,7 +77,7 @@ self.addEventListener('fetch', (event) => {
           
           // If not in cache, return offline page or error
           if (event.request.destination === 'document') {
-            return caches.match('/index.html');
+            return caches.match('/auth/index.html');
           }
         });
       })

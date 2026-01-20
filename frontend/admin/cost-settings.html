@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="../shared/js/auth-guard.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2E7D32">
+    <title>Cost Settings - Aquametic Admin</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="../shared/css/style.css">
+    <link rel="stylesheet" href="../shared/css/chic-styles.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="brand">
+            <h4><i class="fas fa-shield-alt"></i> Admin Panel</h4>
+        </div>
+        <nav class="nav flex-column">
+            <a href="dashboard.html" class="nav-link">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="monitoring.html" class="nav-link">
+                <i class="fas fa-desktop"></i> System Monitoring
+            </a>
+            <a href="users.html" class="nav-link">
+                <i class="fas fa-users"></i> User Management
+            </a>
+            <a href="settings.html" class="nav-link">
+                <i class="fas fa-cog"></i> System Settings
+            </a>
+            <a href="cost-settings.html" class="nav-link active">
+                <i class="fas fa-money-bill-wave"></i> Cost Settings
+            </a>
+            <a href="map.html" class="nav-link">
+                <i class="fas fa-map-marked-alt"></i> Farm Locations
+            </a>
+        </nav>
+    </div>
+
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-outline-dark d-md-none" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h5 class="mb-0 fw-semibold">Cost Parameters</h5>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-muted" id="username-display"></span>
+            <button class="btn btn-outline-danger btn-sm" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <!-- Page Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h4 class="mb-2"><i class="fas fa-money-bill-wave text-success"></i> Cost Parameters Configuration</h4>
+                            <p class="text-muted mb-0">Configure cost parameters used in analytics and savings calculations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Settings Form -->
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-cogs"></i> Update Cost Parameters</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="costSettingsForm">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="dieselCost" class="form-label">
+                                            <i class="fas fa-gas-pump text-danger"></i> Diesel Cost per Liter (RM)
+                                        </label>
+                                        <input type="number" step="0.01" min="0" class="form-control" id="dieselCost" required>
+                                        <div class="form-text">Current market price for diesel fuel</div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="electricityCost" class="form-label">
+                                            <i class="fas fa-bolt text-warning"></i> Electricity Cost per kWh (RM)
+                                        </label>
+                                        <input type="number" step="0.001" min="0" class="form-control" id="electricityCost" required>
+                                        <div class="form-text">Industrial electricity tariff rate</div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="pumpPower" class="form-label">
+                                            <i class="fas fa-tachometer-alt text-primary"></i> Pump Power Rating (kW)
+                                        </label>
+                                        <input type="number" step="0.1" min="0.1" class="form-control" id="pumpPower" required>
+                                        <div class="form-text">Average pump motor power consumption</div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="laborCost" class="form-label">
+                                            <i class="fas fa-user-clock text-info"></i> Labor Cost per Hour (RM)
+                                        </label>
+                                        <input type="number" step="0.50" min="0" class="form-control" id="laborCost" required>
+                                        <div class="form-text">Hourly wage for irrigation labor</div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 mt-3">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save"></i> Save Changes
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="resetBtn">
+                                        <i class="fas fa-undo"></i> Reset to Current
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Card -->
+                <div class="col-lg-4">
+                    <div class="card shadow-sm border-info">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="fas fa-info-circle"></i> About Cost Settings</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>These parameters affect:</strong></p>
+                            <ul class="small">
+                                <li>Water conservation analytics</li>
+                                <li>Cost savings calculations</li>
+                                <li>ROI and efficiency reports</li>
+                                <li>Pump usage comparisons</li>
+                            </ul>
+                            <hr>
+                            <p class="small text-muted mb-0">
+                                <i class="fas fa-lightbulb text-warning"></i>
+                                <strong>Tip:</strong> Update these values regularly to reflect current market rates for accurate analytics.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-warning mt-3">
+                        <div class="card-header bg-warning">
+                            <h6 class="mb-0"><i class="fas fa-chart-line"></i> Current Impact</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small mb-2"><strong>Source:</strong> <span id="dataSource" class="badge bg-secondary">Loading...</span></p>
+                            <p class="small text-muted mb-0">
+                                Changes will be reflected immediately in all analytics calculations across the system.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from '../shared/js/auth.js?v=3';
+        checkAuth();
+    </script>
+    <script src="../shared/js/enhancements.js"></script>
+    <script type="module" src="js/cost-settings.js"></script>
+</body>
+</html>

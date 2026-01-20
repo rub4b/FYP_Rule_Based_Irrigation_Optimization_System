@@ -1,19 +1,23 @@
 const cron = require('node-cron');
 const Plot = require('../models/Plot');
-const User = require('../models/User');
 const SensorData = require('../models/SensorData');
-const emailService = require('../services/emailService');
+const SystemSettings = require('../models/SystemSettings');
+const notificationService = require('../services/notificationService');
 
 // Run every hour
 const job = cron.schedule('0 * * * *', async () => {
   console.log('Running background moisture check job...');
   
   try {
-    // Get all plots
-    const plots = await Plot.find({});
+    // Get critical threshold from system settings
+    const settings = await SystemSettings.findOne({ category: 'NOTIFICATIONS' });
+    const criticalThreshold = settings?.settings?.criticalAlertThreshold || 20;
+
+    // Get all plots with farmer populated
+    const plots = await Plot.find({}).populate('farmer_id');
     
     for (const plot of plots) {
-      if (!plot.sensor_id) continue;
+      if (!plot.sensor_id || !plot.farmer_id) continue;
 
       // Get latest reading
       const latestData = await SensorData.findOne({ sensor_id: plot.sensor_id })
@@ -21,20 +25,17 @@ const job = cron.schedule('0 * * * *', async () => {
         
       if (!latestData) continue;
       
-      // CRITICAL THRESHOLD CHECK (e.g., < 20%)
-      if (latestData.moisture_value < 20) {
-        // Find farmer to get email
-        const farmer = await User.findById(plot.farmer_id);
+      // Use dynamic threshold from system settings
+      if (latestData.moisture_value < criticalThreshold) {
+        console.log(`Sending alert for plot ${plot.name} (${latestData.moisture_value}%)`);
         
-        if (farmer && farmer.email) {
-          console.log(`Sending alert for plot ${plot.name} to ${farmer.email}`);
-          
-          await emailService.sendEmail(
-            farmer.email,
-            `🚨 CRITICAL: Low Moisture in ${plot.name}`,
-            `Hello ${farmer.name},\n\nYour plot "${plot.name}" has critically low soil moisture (${latestData.moisture_value}%).\n\nPlease irrigate immediately to prevent crop damage.\n\n- Aquametic System`
-          );
-        }
+        // Use centralized notification service (supports email + WebSocket)
+        await notificationService.sendCriticalMoistureAlert(
+          plot.farmer_id._id,
+          plot.name,
+          latestData.moisture_value,
+          global.io // WebSocket instance for real-time notifications
+        );
       }
     }
   } catch (error) {

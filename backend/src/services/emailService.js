@@ -1,18 +1,18 @@
 const nodemailer = require('nodemailer');
+const { EMAIL } = require('../config/env');
 
 // Configure transporter
-// In a real app, use environment variables for credentials
 console.log('📧 Email Service Configuration:');
-console.log('EMAIL_USER from env:', process.env.EMAIL_USER);
-console.log('EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
+console.log('EMAIL_USER from env:', EMAIL.USER);
+console.log('EMAIL_PASS exists:', !!EMAIL.PASS);
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // use TLS
+  host: EMAIL.HOST,
+  port: EMAIL.PORT,
+  secure: EMAIL.SECURE, // use TLS
   auth: {
-    user: process.env.EMAIL_USER || 'nerdyrumble29@gmail.com',
-    pass: process.env.EMAIL_PASS || 'yhfpuszzkilqhvse'
+    user: EMAIL.USER,
+    pass: EMAIL.PASS
   },
   tls: {
     rejectUnauthorized: false
@@ -26,18 +26,18 @@ const transporter = nodemailer.createTransport({
  * @param {string} text - Email body text
  */
 exports.sendEmail = async (to, subject, text) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!EMAIL.USER || !EMAIL.PASS) {
     console.warn('[EmailMock] Email skipped: Credentials not set in .env');
     console.log(`[EmailMock] To: ${to}, Subject: ${subject}, Body: ${text}`);
     return;
   }
 
   console.log(`Attempting to send email to: ${to}`);
-  console.log(`Email user: ${process.env.EMAIL_USER}`);
-  console.log(`Email pass length: ${process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0}`);
+  console.log(`Email user: ${EMAIL.USER}`);
+  console.log(`Email pass length: ${EMAIL.PASS ? EMAIL.PASS.length : 0}`);
 
   const mailOptions = {
-    from: `Aquametic <${process.env.EMAIL_USER}>`,
+    from: EMAIL.FROM,
     to,
     subject,
     text,

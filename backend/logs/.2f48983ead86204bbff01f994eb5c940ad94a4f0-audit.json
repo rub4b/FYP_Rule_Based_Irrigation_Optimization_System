@@ -1,0 +1,30 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\.2f48983ead86204bbff01f994eb5c940ad94a4f0-audit.json",
+    "files": [
+        {
+            "date": 1768170224080,
+            "name": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\rejections-2026-01-12.log",
+            "hash": "7c928d60924c51f2c437e4269f6e57e2a2b9d4d0ef0d3a4a98340c9ce101bb94"
+        },
+        {
+            "date": 1768244679773,
+            "name": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\rejections-2026-01-13.log",
+            "hash": "d5d5264d44e20360b32496901a081f8d4bcf902fe9ac1aef27edc4887114ae4b"
+        },
+        {
+            "date": 1768683007965,
+            "name": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\rejections-2026-01-18.log",
+            "hash": "fe157a83795cf442d36af5b5d5766d1371fa65dcab9d4ca03331a3f0f6b18d0a"
+        },
+        {
+            "date": 1768915506975,
+            "name": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\rejections-2026-01-20.log",
+            "hash": "815141d0aa332ff927177664502778776e82b794719ec4e0bf1f7aa76581244a"
+        }
+    ],
+    "hashType": "sha256"
+}

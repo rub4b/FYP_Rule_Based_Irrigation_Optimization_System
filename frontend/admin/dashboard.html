@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+    <script src="../shared/js/auth-guard.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Farm Management System</title>
+    <!-- Google Fonts - Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="../shared/css/style.css">
+    <link rel="stylesheet" href="../shared/css/chic-styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* Remove inline admin-specific styles - now using chic-styles.css */
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .top-navbar,
+            .main-content {
+                margin-left: 0;
+                left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="brand">
+            <h4><i class="fas fa-seedling"></i> Aquametic</h4>
+        </div>
+        <nav class="nav flex-column">
+            <a href="dashboard.html" class="nav-link active" id="nav-dashboard">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="users.html" class="nav-link" id="nav-users">
+                <i class="fas fa-users"></i> User Management
+            </a>
+            <a href="map.html" class="nav-link" id="nav-system-map">
+                <i class="fas fa-map-marked-alt"></i> System Map
+            </a>
+            <a href="monitoring.html" class="nav-link" id="nav-monitoring">
+                <i class="fas fa-chart-line"></i> Monitoring
+            </a>
+            <a href="settings.html" class="nav-link" id="nav-settings">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            <a href="cost-settings.html" class="nav-link" id="nav-cost-settings">
+                <i class="fas fa-money-bill-wave"></i> Cost Settings
+            </a>
+        </nav>
+    </div>
+    
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-outline-dark d-md-none" id="sidebarToggle" style="font-size: 1.25rem; padding: 0.5rem 0.75rem; border-width: 2px;">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h5 class="mb-0 fw-semibold">Admin Dashboard</h5>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <span id="username-display" class="text-muted"><i class="fas fa-user-shield"></i> </span>
+            <button id="logoutBtn" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Overview Statistics -->
+        <div class="row g-4 mb-4">
+            <div class="col-12 col-md-4">
+                <div class="card shadow-sm border-0 border-start border-4 border-primary h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase mb-1">Total Farmers</h6>
+                            <h2 class="fw-bold mb-0" id="total-farmers">--</h2>
+                        </div>
+                        <div class="text-primary opacity-25">
+                            <i class="fas fa-users fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="card shadow-sm border-0 border-start border-4 h-100" style="border-color: var(--secondary-color) !important;">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase mb-1">Active Plots</h6>
+                            <h2 class="fw-bold mb-0" id="total-plots">--</h2>
+                        </div>
+                        <div class="text-soil opacity-25">
+                            <i class="fas fa-seedling fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase mb-1">Critical Alerts</h6>
+                            <h2 class="fw-bold mb-0 text-danger" id="active-alerts">0</h2>
+                        </div>
+                        <div class="text-danger opacity-25">
+                            <i class="fas fa-exclamation-triangle fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map Section -->
+        <section class="mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Live Sensor Network</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-danger rounded-pill pulse-badge">
+                            <i class="fas fa-broadcast-tower"></i> LIVE
+                        </span>
+                        <a href="map.html" class="btn btn-sm btn-primary">
+                            <i class="fas fa-expand"></i> View Full Map
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="map-legend d-flex gap-3">
+                            <span class="small"><span class="badge bg-success"></span> Healthy (≥40%)</span>
+                            <span class="small"><span class="badge bg-danger"></span> Critical (&lt;40%)</span>
+                            <span class="small"><span class="badge bg-secondary"></span> No Data</span>
+                        </div>
+                    </div>
+                    <div id="map" style="height: 500px; border-radius: 0 0 8px 8px;"></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- User Management Table -->
+        <section class="mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-users-cog"></i> User Management</h5>
+                    <button class="btn btn-success btn-sm" id="addUserBtn">
+                        <i class="fas fa-user-plus"></i> Add User
+                    </button>
+                </div>
+                
+                <!-- Add User Form (Initially Hidden) -->
+                <div class="card-body border-bottom bg-light" id="addUserFormContainer" style="display: none;">
+                    <h6 class="mb-3"><i class="fas fa-user-plus"></i> Create New User</h6>
+                    <form id="addUserForm" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="newUsername" class="form-label">Username <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="newUsername" name="username" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="newName" class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="newName" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="newEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="newEmail" name="email" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="newPhone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="newPhone" name="phone">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="newPassword" class="form-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="newPassword" name="password" required minlength="6">
+                            <small class="text-muted">Minimum 6 characters</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="confirmPassword" class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="newRole" class="form-label">Role <span class="text-danger">*</span></label>
+                            <select class="form-select" id="newRole" name="role" required>
+                                <option value="">Select role...</option>
+                                <option value="farmer">Farmer</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="alert alert-info small mb-0">
+                                <i class="fas fa-info-circle"></i> User will receive a welcome email with their login credentials.
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-success" id="submitAddUser">
+                                <i class="fas fa-user-plus"></i> Create User
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="cancelAddUser">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped align-middle" id="users-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <!-- User rows will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- All Plots Table -->
+        <section class="mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> All Plots Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle" id="plots-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Plot Name</th>
+                                    <th>Farmer</th>
+                                    <th>Sensor ID</th>
+                                    <th>Location</th>
+                                    <th>Current Moisture</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="plots-table-body">
+                                <!-- Plot rows will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => console.log('SW registered:', registration.scope))
+                .catch(error => console.log('SW registration failed:', error));
+        }
+    </script>
+    
+    <script type="module">
+        import { checkAuth } from '../shared/js/auth.js';
+        checkAuth();
+    </script>
+    <script type="module" src="js/admin.js"></script>
+</body>
+</html>

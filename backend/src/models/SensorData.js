@@ -24,4 +24,12 @@ const sensorDataSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Indexes for performance - critical for analytics queries
+sensorDataSchema.index({ sensor_id: 1, timestamp: -1 }); // Compound index for sensor + time queries
+sensorDataSchema.index({ timestamp: -1 }); // Time-based queries
+sensorDataSchema.index({ sensor_id: 1 }); // Sensor-specific queries
+
+// TTL index to automatically delete old data after 1 year (optional)
+// sensorDataSchema.index({ timestamp: 1 }, { expireAfterSeconds: 31536000 });
+
 module.exports = mongoose.model('SensorData', sensorDataSchema);

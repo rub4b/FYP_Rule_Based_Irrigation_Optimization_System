@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\.1b2d18695ff1e040621b10e7ca5c7b66290ef0be-audit.json",
+    "files": [
+        {
+            "date": 1768683007959,
+            "name": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\http-2026-01-18.log",
+            "hash": "ec1328782ecca827b9e5b8b266c55642ce2fea20fe59fe27a1900816c8285e63"
+        },
+        {
+            "date": 1768915506969,
+            "name": "C:\\Users\\Administrator\\Desktop\\FYP2\\Aquametic\\backend\\logs\\http-2026-01-20.log",
+            "hash": "c7e09079ffd6b012c9d0d0d0aca5c60b42a6026080a56111a7d28812a4aca251"
+        }
+    ],
+    "hashType": "sha256"
+}

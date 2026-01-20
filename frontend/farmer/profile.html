@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+    <script src="../shared/js/auth-guard.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2E7D32">
+    <title>Profile Settings - Farm Management System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="../shared/css/style.css">
+    <link rel="stylesheet" href="../shared/css/chic-styles.css">
+    <style>
+    
+        .profile-picture {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            border: 5px solid #fff;
+            box-shadow: 0 8px 20px rgba(46, 125, 50, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .profile-picture:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 28px rgba(46, 125, 50, 0.4);
+        }
+        
+        .profile-picture i {
+            font-size: 4rem;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+                left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="sidebar">
+        <div class="brand">
+            <h4><i class="fas fa-seedling"></i> Aquametic</h4>
+        </div>
+        <nav class="nav flex-column">
+            <a href="dashboard.html" class="nav-link" id="nav-dashboard">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="plots.html" class="nav-link" id="nav-plots">
+                <i class="fas fa-map-marked-alt"></i> My Plots
+            </a>
+            <a href="analytics.html" class="nav-link" id="nav-analytics">
+                <i class="fas fa-chart-line"></i> Analytics
+            </a>
+            <a href="sensors.html" class="nav-link" id="nav-sensors">
+                <i class="fas fa-tachometer-alt"></i> Sensor Data
+            </a>
+            <a href="profile.html" class="nav-link active">
+                <i class="fas fa-user-cog"></i> Settings
+            </a>
+        </nav>
+    </div>
+    
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-outline-dark d-md-none" id="sidebarToggle" style="font-size: 1.25rem; padding: 0.5rem 0.75rem; border-width: 2px;">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h5 class="mb-0 fw-semibold">Profile Settings</h5>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <a href="dashboard.html" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            <button id="logoutBtn" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="row g-4">
+            <!-- Left Column - User Identity Card -->
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 rounded-3 text-center p-4 h-100">
+                    <div class="card-body">
+                        <div class="mb-3 mx-auto d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-circle" style="width: 100px; height: 100px;">
+                            <i class="fas fa-user fa-3x"></i>
+                        </div>
+                        
+                        <h4 class="fw-bold mb-1" id="profile-name-display">Loading...</h4>
+                        <p class="text-muted mb-3">Premium Plan Member</p>
+                        
+                        <div class="d-flex justify-content-center gap-2 mb-4">
+                            <span class="badge bg-light text-dark border">
+                                <i class="fas fa-seedling text-success"></i> <span id="total-plots-badge">0</span> Plots
+                            </span>
+                            <span class="badge bg-light text-dark border">
+                                <i class="fas fa-calendar-alt text-primary"></i> Joined <span id="joined-year">2024</span>
+                            </span>
+                        </div>
+
+                        <button class="btn btn-outline-success w-100 btn-sm" id="changePhotoBtn">
+                            <i class="fas fa-camera"></i> Change Photo
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column - Edit Details Card -->
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0 border-start border-4 rounded-3" style="border-color: var(--secondary-color) !important;">
+                    <div class="card-header bg-white border-0 pt-4 pb-3">
+                        <h5 class="mb-0 text-soil"><i class="fas fa-edit"></i> Edit Profile Details</h5>
+                        <small class="text-muted">Update your account information</small>
+                    </div>
+                    <div class="card-body px-4 pb-4">
+                        <form id="profileForm">
+                            <!-- Personal Information Section -->
+                            <div class="mb-4">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-user-circle"></i> Personal Information
+                                </h6>
+                                
+                                <!-- Full Name with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="fullname" name="fullname" placeholder="Full Name" required>
+                                    <label for="fullname"><i class="fas fa-id-card"></i> Full Name</label>
+                                </div>
+                                
+                                <!-- Username with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="username" name="username" placeholder="Username" required>
+                                    <label for="username"><i class="fas fa-user"></i> Username</label>
+                                </div>
+                                
+                                <!-- Email with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required>
+                                    <label for="email"><i class="fas fa-envelope"></i> Email Address</label>
+                                </div>
+                                
+                                <!-- Phone with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="tel" class="form-control" id="phone" name="phone" placeholder="Phone Number">
+                                    <label for="phone"><i class="fas fa-phone"></i> Phone Number</label>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-4">
+                            
+                            <!-- Farm Details Section -->
+                            <div class="mb-4">
+                                <h6 class="fw-bold text-success mb-3">
+                                    <i class="fas fa-tractor"></i> Farm Details
+                                </h6>
+                                
+                                <!-- Farm Name with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="farm-name" name="farm_name" placeholder="Farm Name">
+                                    <label for="farm-name"><i class="fas fa-home"></i> Farm Name</label>
+                                </div>
+                                
+                                <!-- Location with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="location" name="location" placeholder="Location">
+                                    <label for="location"><i class="fas fa-map-marker-alt"></i> Location</label>
+                                </div>
+                                
+                                <!-- Farm Size with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="farm-size" name="farm_size" placeholder="Farm Size (acres)">
+                                    <label for="farm-size"><i class="fas fa-expand"></i> Farm Size (acres)</label>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-4">
+                            
+                            <!-- Change Password Section -->
+                            <div class="mb-4">
+                                <h6 class="fw-bold text-warning mb-3">
+                                    <i class="fas fa-key"></i> Change Password
+                                </h6>
+                                <p class="text-muted small mb-3">Leave blank to keep your current password</p>
+                                
+                                <!-- New Password with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="password" class="form-control" id="new-password" name="password" placeholder="New Password">
+                                    <label for="new-password"><i class="fas fa-lock"></i> New Password</label>
+                                </div>
+                                
+                                <!-- Confirm Password with Floating Label -->
+                                <div class="form-floating mb-3">
+                                    <input type="password" class="form-control" id="confirm-password" name="confirm_password" placeholder="Confirm Password">
+                                    <label for="confirm-password"><i class="fas fa-lock"></i> Confirm Password</label>
+                                </div>
+                            </div>
+                            
+                            <div id="profile-message" class="alert" style="display: none;"></div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <button type="button" class="btn btn-outline-secondary" id="cancelBtn">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> Save Changes
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Danger Zone - Account Deletion -->
+                        <hr class="my-4">
+                        <div class="danger-zone mt-4 p-4 border border-danger rounded-3 bg-light">
+                            <h6 class="fw-bold text-danger mb-3">
+                                <i class="fas fa-exclamation-triangle"></i> Danger Zone
+                            </h6>
+                            <p class="text-muted small mb-3">
+                                Once you delete your account, there is no going back. This action will:
+                            </p>
+                            <ul class="text-muted small mb-3">
+                                <li>Permanently delete your account</li>
+                                <li>Remove all your plots and their data</li>
+                                <li>Delete all sensor data from your plots</li>
+                                <li>Remove all irrigation recommendations</li>
+                                <li>This action cannot be undone</li>
+                            </ul>
+                            <button type="button" class="btn btn-danger" id="deleteAccountBtn">
+                                <i class="fas fa-trash-alt"></i> Delete My Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    
+    <!-- Mobile Sidebar Toggle -->
+    <script>
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
+            });
+            
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(event) {
+                if (window.innerWidth <= 768) {
+                    if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                        sidebar.classList.remove('show');
+                    }
+                }
+            });
+        }
+    </script>
+    
+    <script type="module">
+        import { checkAuth } from '../shared/js/auth.js';
+        checkAuth();
+    </script>
+    <script src="../shared/js/enhancements.js"></script>
+    <script type="module" src="js/profile.js"></script>
+</body>
+</html>

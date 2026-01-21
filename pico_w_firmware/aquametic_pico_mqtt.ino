@@ -20,12 +20,12 @@
 #include <ArduinoJson.h>
 
 // ========== CONFIGURATION ==========
-// WiFi Credentials
-const char* WIFI_SSID = "Fsktm2.0-2.4GHz";
-const char* WIFI_PASSWORD = "ququrchana64";
+// WiFi Credentials - UPDATE THESE WITH YOUR MOBILE HOTSPOT
+const char* WIFI_SSID = "YOUR_HOTSPOT_NAME";        // Your mobile hotspot name
+const char* WIFI_PASSWORD = "YOUR_HOTSPOT_PASSWORD"; // Your mobile hotspot password
 
-// MQTT Broker Settings
-const char* MQTT_BROKER = "test.mosquitto.org";  // Public test broker
+// MQTT Broker Settings - Your computer's IP on hotspot
+const char* MQTT_BROKER = "172.23.83.181";  // Your computer's hotspot IP
 const int MQTT_PORT = 1883;
 const char* MQTT_USERNAME = "";                   // Optional
 const char* MQTT_PASSWORD = "";                   // Optional

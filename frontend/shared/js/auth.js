@@ -39,8 +39,8 @@ export async function login(username, password) {
 
 // Check authentication
 export function checkAuth() {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const user = localStorage.getItem('user') || sessionStorage.getItem('user');
 
     if (!token || !user) {
         // No token found, redirect to login
@@ -72,8 +72,13 @@ export function checkAuth() {
 
 // Logout function
 export function logout() {
+    // Clear both storages
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('rememberMe');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    
     const currentPath = window.location.pathname;
     if (currentPath.includes('/auth/')) {
         window.location.href = 'index.html';
@@ -84,7 +89,7 @@ export function logout() {
 
 // Get current user
 export function getCurrentUser() {
-    const user = localStorage.getItem('user');
+    const user = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (user) {
         try {
             return JSON.parse(user);
@@ -98,5 +103,5 @@ export function getCurrentUser() {
 
 // Get auth token
 export function getToken() {
-    return localStorage.getItem('token');
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
 }

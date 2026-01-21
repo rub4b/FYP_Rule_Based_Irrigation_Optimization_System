@@ -14,7 +14,13 @@ document.getElementById('username-display').innerHTML = `<i class="fas fa-user-s
 
 // Logout handler
 document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('username');
+    localStorage.removeItem('rememberMe');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('username');
     window.location.href = '../auth/index.html';
 });
 

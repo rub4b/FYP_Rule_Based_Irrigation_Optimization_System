@@ -522,17 +522,8 @@ section h4 i {
     50% { transform: translateY(-10px); }
 }
 
-@keyframes float-subtle {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-5px); }
-}
-
 .floating-element {
     animation: float 3s ease-in-out infinite;
-}
-
-.floating-icon {
-    animation: float-subtle 2s ease-in-out infinite;
 }
 
 /* ================================

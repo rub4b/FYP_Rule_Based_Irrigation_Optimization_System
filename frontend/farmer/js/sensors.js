@@ -1,5 +1,5 @@
 // --- AUTHENTICATION CHECK ---
-const token = localStorage.getItem('token');
+const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 if (!token) {
     // No token found? Kick them out!
     window.location.href = '../auth/index.html'; 
@@ -9,13 +9,18 @@ if (!token) {
 document.getElementById('logout-btn')?.addEventListener('click', () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('username');
+    localStorage.removeItem('rememberMe');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('username');
     window.location.href = '../auth/index.html';
 });
 
 import { API_BASE_URL } from '../../shared/js/api.js';
 
 // Authentication check
-const username = localStorage.getItem('username');
+const username = localStorage.getItem('username') || sessionStorage.getItem('username');
 
 if (!token || !username) {
     window.location.href = '../auth/index.html';
@@ -26,8 +31,15 @@ document.getElementById('username-display').innerHTML = `<i class="fas fa-user-c
 
 // Logout handler
 document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('username');
+    localStorage.removeItem('rememberMe');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('username');
     window.location.href = '../auth/index.html';
+});
 });
 
 // Pagination state

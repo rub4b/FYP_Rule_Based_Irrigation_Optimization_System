@@ -54,13 +54,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip caching for non-GET requests (POST, PUT, DELETE)
+  if (event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
         // Clone the response
         const responseClone = response.clone();
         
-        // Cache the fetched response for future use
+        // Cache the fetched response for future use (only for GET requests)
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseClone);
         });

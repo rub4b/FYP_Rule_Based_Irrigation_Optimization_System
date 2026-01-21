@@ -1,5 +1,5 @@
 // --- AUTHENTICATION CHECK ---
-const token = localStorage.getItem('token');
+const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 if (!token) {
     // No token found? Kick them out!
     window.location.href = '../auth/index.html'; 
@@ -9,6 +9,11 @@ if (!token) {
 document.getElementById('logout-btn')?.addEventListener('click', () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('username');
+    localStorage.removeItem('rememberMe');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('username');
     window.location.href = '../auth/index.html';
 });
 
@@ -240,7 +245,7 @@ function displayPlots(plots) {
                 <div class="card h-100 plot-card card-hover-lift" data-plot-id="${plot._id}" data-sensor-id="${plot.sensor_id}">
                     <div class="card-header d-flex justify-content-between align-items-center animated-gradient">
                         <h6 class="mb-0 fw-bold" style="color: #A5D6A7; font-size: 1.3rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); letter-spacing: 0.5px;">
-                            <i class="fas fa-leaf floating-icon" style="margin-right: 8px;"></i>
+                            <i class="fas fa-leaf" style="margin-right: 8px;"></i>
                             ${plotName}
                         </h6>
                         <span class="badge sensor-status ${statusClass}" style="box-shadow: 0 2px 8px rgba(0,0,0,0.15);">${statusBadge}</span>

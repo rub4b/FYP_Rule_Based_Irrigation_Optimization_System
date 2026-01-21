@@ -231,6 +231,7 @@ exports.getProfile = async (req, res, next) => {
         location: user.location,
         farm_size: user.farm_size,
         role: user.role,
+        profilePicture: user.profilePicture,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
@@ -826,3 +827,67 @@ exports.updateUser = async (req, res, next) => {
   }
 };
 
+// PUT /api/auth/profile-picture - Upload/Update profile picture
+exports.updateProfilePicture = async (req, res, next) => {
+  try {
+    const { profilePicture } = req.body;
+    
+    if (!profilePicture) {
+      const error = new Error('No profile picture provided');
+      error.statusCode = 400;
+      throw error;
+    }
+    
+    // Validate base64 image format
+    if (!profilePicture.startsWith('data:image/')) {
+      const error = new Error('Invalid image format');
+      error.statusCode = 400;
+      throw error;
+    }
+    
+    // Find and update user
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    
+    user.profilePicture = profilePicture;
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture updated successfully',
+      data: {
+        profilePicture: user.profilePicture
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/auth/profile-picture - Remove profile picture
+exports.removeProfilePicture = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    
+    user.profilePicture = null;
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture removed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};

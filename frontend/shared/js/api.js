@@ -18,8 +18,8 @@ export async function apiRequest(endpoint, options = {}, timeout = 10000) {
     
     const config = { ...defaultOptions, ...options };
     
-    // Add authorization token if available
-    const token = localStorage.getItem('token');
+    // Add authorization token if available (check both storages)
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }

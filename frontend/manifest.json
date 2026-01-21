@@ -1,23 +1,23 @@
 {
-  "name": "Farm Management System",
-  "short_name": "FarmMS",
-  "description": "Farm Management System with Sensor Monitoring",
+  "name": "Aquametic Smart Irrigation",
+  "short_name": "Aquametic",
+  "description": "Smart Irrigation System with Real-time Monitoring",
   "start_url": "/auth/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#667eea",
+  "theme_color": "#2E7D32",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%232E7D32'/><text x='96' y='130' font-size='120' text-anchor='middle' fill='white'>🌱</text></svg>",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%232E7D32'/><text x='256' y='350' font-size='320' text-anchor='middle' fill='white'>🌱</text></svg>",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]

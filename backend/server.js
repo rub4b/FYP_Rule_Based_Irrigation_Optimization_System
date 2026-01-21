@@ -46,8 +46,8 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors()); // Allow requests from anywhere
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../frontend')));

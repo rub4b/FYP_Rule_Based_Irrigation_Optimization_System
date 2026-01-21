@@ -34,7 +34,13 @@ async function loadUsers() {
         }
 
         const result = await response.json();
-        const users = result.data || result;
+        const users = result.users || result.data || [];
+
+        // Ensure users is an array
+        if (!Array.isArray(users)) {
+            console.error('Invalid users data:', users);
+            throw new Error('Invalid data format received from server');
+        }
 
         // Update counts
         document.getElementById('total-users-count').textContent = users.length;
@@ -133,7 +139,12 @@ window.viewUser = async function(userId) {
             }
         });
         const result = await response.json();
-        const users = result.data || result;
+        const users = result.users || result.data || [];
+        
+        if (!Array.isArray(users)) {
+            throw new Error('Invalid data format received from server');
+        }
+        
         const user = users.find(u => u._id === userId);
 
         if (!user) {
@@ -172,7 +183,12 @@ window.editUser = async function(userId) {
             }
         });
         const result = await response.json();
-        const users = result.data || result;
+        const users = result.users || result.data || [];
+        
+        if (!Array.isArray(users)) {
+            throw new Error('Invalid data format received from server');
+        }
+        
         const user = users.find(u => u._id === userId);
 
         if (!user) {

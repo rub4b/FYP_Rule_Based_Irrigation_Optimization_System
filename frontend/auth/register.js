@@ -4,7 +4,55 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof ToastManager !== 'undefined') {
         toast = new ToastManager();
     }
+    
+    // Setup password requirements checker
+    const passwordInput = document.getElementById('password');
+    const passwordRequirements = document.getElementById('passwordRequirements');
+    
+    if (passwordInput && passwordRequirements) {
+        passwordInput.addEventListener('focus', () => {
+            passwordRequirements.style.display = 'block';
+        });
+        
+        passwordInput.addEventListener('input', () => {
+            checkPasswordRequirements(passwordInput.value);
+        });
+        
+        passwordInput.addEventListener('blur', () => {
+            // Keep visible if there are unmet requirements
+            const allMet = document.querySelectorAll('.requirement.met').length === 5;
+            if (allMet) {
+                setTimeout(() => {
+                    passwordRequirements.style.display = 'none';
+                }, 500);
+            }
+        });
+    }
 });
+
+// Check password requirements in real-time
+function checkPasswordRequirements(password) {
+    const requirements = {
+        'req-length': password.length >= 6,
+        'req-uppercase': /[A-Z]/.test(password),
+        'req-lowercase': /[a-z]/.test(password),
+        'req-number': /\d/.test(password),
+        'req-special': /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+    
+    for (const [id, met] of Object.entries(requirements)) {
+        const element = document.getElementById(id);
+        if (element) {
+            if (met) {
+                element.classList.add('met');
+                element.querySelector('i').className = 'fas fa-check-circle';
+            } else {
+                element.classList.remove('met');
+                element.querySelector('i').className = 'fas fa-circle';
+            }
+        }
+    }
+}
 
 // Registration form handler
 const registerForm = document.getElementById('registerForm');

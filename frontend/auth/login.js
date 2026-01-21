@@ -21,6 +21,7 @@ loginForm.addEventListener('submit', async (e) => {
     
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
+    const rememberMe = document.getElementById('rememberMe').checked;
     
     // Show loading state on button
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -32,12 +33,18 @@ loginForm.addEventListener('submit', async (e) => {
         const response = await login(username, password);
         
         if (response.success) {
-            // Store token and user info - CRITICAL: Save BEFORE redirect
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('user', JSON.stringify(response.user));
-            localStorage.setItem('username', response.user.username || response.user.name || username);
+            // Choose storage based on Remember Me checkbox
+            const storage = rememberMe ? localStorage : sessionStorage;
             
-            console.log('✅ Login successful! Token saved:', response.token);
+            // Store token and user info
+            storage.setItem('token', response.token);
+            storage.setItem('user', JSON.stringify(response.user));
+            storage.setItem('username', response.user.username || response.user.name || username);
+            
+            // Also set a flag to know which storage to check
+            localStorage.setItem('rememberMe', rememberMe);
+            
+            console.log(`✅ Login successful! Token saved to ${rememberMe ? 'localStorage' : 'sessionStorage'}:`, response.token);
             console.log('✅ User data saved:', response.user);
             
             // Show success toast

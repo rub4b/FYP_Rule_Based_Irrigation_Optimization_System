@@ -191,7 +191,7 @@ function displayPlots(plots) {
                 <div class="card h-100 plot-card card-hover-lift" data-plot-id="${plot._id}" data-sensor-id="${plot.sensor_id}">
                     <div class="card-header d-flex justify-content-between align-items-center animated-gradient">
                         <h6 class="mb-0 fw-bold" style="color: #A5D6A7; font-size: 1.3rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); letter-spacing: 0.5px;">
-                            <i class="fas fa-leaf floating-icon" style="margin-right: 8px;"></i>
+                            <i class="fas fa-leaf" style="margin-right: 8px;"></i>
                             ${plotName}
                         </h6>
                         <span class="badge ${statusClass}" style="box-shadow: 0 2px 8px rgba(0,0,0,0.15);">${statusBadge}</span>
@@ -221,11 +221,11 @@ function displayPlots(plots) {
                         </div>
                         <div class="mb-3 p-2" style="background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 10px;">
                             <small class="d-flex align-items-center mb-2" style="color: #546E7A;">
-                                <i class="fas fa-microchip floating-icon" style="color: #2E7D32; margin-right: 8px; font-size: 1rem;"></i>
+                                <i class="fas fa-microchip" style="color: #2E7D32; margin-right: 8px; font-size: 1rem;"></i>
                                 <span class="fw-semibold">${plot.sensor_id}</span>
                             </small>
                             <small class="d-flex align-items-center" style="color: #546E7A;">
-                                <i class="fas fa-map-marker-alt floating-icon" style="color: #F9A825; margin-right: 8px; font-size: 1rem;"></i>
+                                <i class="fas fa-map-marker-alt" style="color: #F9A825; margin-right: 8px; font-size: 1rem;"></i>
                                 <span>${plot.location || 'Location not set'}</span>
                             </small>
                         </div>

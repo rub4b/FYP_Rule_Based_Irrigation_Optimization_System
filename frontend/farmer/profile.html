@@ -17,7 +17,13 @@
     <link rel="stylesheet" href="../shared/css/style.css">
     <link rel="stylesheet" href="../shared/css/chic-styles.css">
     <style>
-    
+        .profile-picture-container {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            margin: 0 auto 20px;
+        }
+        
         .profile-picture {
             width: 140px;
             height: 140px;
@@ -26,10 +32,16 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
             border: 5px solid #fff;
             box-shadow: 0 8px 20px rgba(46, 125, 50, 0.3);
             transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .profile-picture img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         
         .profile-picture:hover {
@@ -41,6 +53,37 @@
             font-size: 4rem;
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .upload-overlay {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: #2E7D32;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            border: 3px solid white;
+        }
+        
+        .upload-overlay:hover {
+            background: #1B5E20;
+            transform: scale(1.1);
+        }
+        
+        .upload-overlay i {
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        #profilePictureInput {
+            display: none;
         }
     </style>
                 left: 0;
@@ -98,12 +141,18 @@
             <div class="col-md-4">
                 <div class="card shadow-sm border-0 rounded-3 text-center p-4 h-100">
                     <div class="card-body">
-                        <div class="mb-3 mx-auto d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-circle" style="width: 100px; height: 100px;">
-                            <i class="fas fa-user fa-3x"></i>
+                        <div class="profile-picture-container">
+                            <div class="profile-picture" id="profilePicturePreview">
+                                <i class="fas fa-user fa-3x"></i>
+                            </div>
+                            <div class="upload-overlay" id="uploadOverlay">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                            <input type="file" id="profilePictureInput" accept="image/*">
                         </div>
                         
                         <h4 class="fw-bold mb-1" id="profile-name-display">Loading...</h4>
-                        <p class="text-muted mb-3">Premium Plan Member</p>
+                        <p class="text-muted mb-3"><i class="fas fa-seedling"></i> Farmer</p>
                         
                         <div class="d-flex justify-content-center gap-2 mb-4">
                             <span class="badge bg-light text-dark border">
@@ -114,8 +163,8 @@
                             </span>
                         </div>
 
-                        <button class="btn btn-outline-success w-100 btn-sm" id="changePhotoBtn">
-                            <i class="fas fa-camera"></i> Change Photo
+                        <button class="btn btn-outline-danger btn-sm w-100" id="removePhotoBtn" style="display: none;">
+                            <i class="fas fa-trash"></i> Remove Photo
                         </button>
                     </div>
                 </div>

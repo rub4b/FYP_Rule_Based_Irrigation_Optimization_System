@@ -42,11 +42,14 @@ async function fetchUsers() {
 
         if (data.success && data.users) {
             allUsers = data.users;
+            console.log('Loaded users from API:', allUsers.length, 'total users');
+            console.log('Farmers:', allUsers.filter(u => u.role === 'farmer').length);
             displayUsersTable(allUsers);
             updateDashboardStats();
         }
     } catch (error) {
         console.error('Error fetching users:', error);
+        console.log('Using sample data instead');
         // Display sample data if API endpoint doesn't exist yet
         displaySampleUsers();
     }
@@ -246,8 +249,20 @@ function displayPlotsTable(plots) {
 // Make viewPlotDetails global for onclick handler
 window.viewPlotDetails = async function(plotId, sensorId) {
     try {
+        // Find the plot details from allPlots
+        const plot = allPlots.find(p => p._id === plotId);
+        
+        if (!plot) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Plot Not Found',
+                text: 'Could not find plot details'
+            });
+            return;
+        }
+
         const token = getToken();
-        const response = await fetch(`${API_BASE_URL}/dashboard/sensor-data/${sensorId}?limit=20`, {
+        const response = await fetch(`${API_BASE_URL}/dashboard/sensor-data/${sensorId}?limit=5`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -256,14 +271,86 @@ window.viewPlotDetails = async function(plotId, sensorId) {
         const data = await response.json();
         
         if (data.success) {
-            alert(`Sensor Data for ${sensorId}:\n\nLatest readings:\n` + 
-                data.data.slice(0, 5).map(d => 
-                    `${new Date(d.timestamp).toLocaleString()}: ${d.moisture_value}%`
-                ).join('\n'));
+            const moisture = plot.current_moisture || 0;
+            const farmerName = plot.farmer_id?.username || 'N/A';
+            const lastUpdate = plot.last_update ? new Date(plot.last_update).toLocaleString() : 'N/A';
+            
+            // Determine status
+            let status, statusColor;
+            if (moisture >= 40) {
+                status = 'Good';
+                statusColor = '#28a745';
+            } else if (moisture >= 20) {
+                status = 'Low';
+                statusColor = '#ffc107';
+            } else {
+                status = 'Critical';
+                statusColor = '#dc3545';
+            }
+            
+            // Build recent readings HTML
+            const readingsHtml = data.data.length > 0 
+                ? data.data.map(d => 
+                    `<div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small">${new Date(d.timestamp).toLocaleString()}</span>
+                        <span class="badge bg-primary">${d.moisture_value}%</span>
+                    </div>`
+                ).join('')
+                : '<p class="text-muted text-center">No recent readings available</p>';
+            
+            Swal.fire({
+                title: `<i class="fas fa-seedling"></i> ${plot.name}`,
+                html: `
+                    <div class="text-start">
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <p class="mb-1"><strong>Farmer:</strong></p>
+                                <p class="text-muted">${farmerName}</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="mb-1"><strong>Sensor ID:</strong></p>
+                                <p class="text-muted"><code>${sensorId}</code></p>
+                            </div>
+                            <div class="col-6">
+                                <p class="mb-1"><strong>Location:</strong></p>
+                                <p class="text-muted small">${plot.location}</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="mb-1"><strong>Last Update:</strong></p>
+                                <p class="text-muted small">${lastUpdate}</p>
+                            </div>
+                            <div class="col-12">
+                                <p class="mb-1"><strong>Current Moisture:</strong></p>
+                                <h3 style="color: ${statusColor}">${moisture}% - ${status}</h3>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h6 class="mb-3"><i class="fas fa-chart-line"></i> Recent Readings</h6>
+                        <div class="mb-2" style="max-height: 200px; overflow-y: auto;">
+                            ${readingsHtml}
+                        </div>
+                    </div>
+                `,
+                width: '600px',
+                confirmButtonText: '<i class="fas fa-times"></i> Close',
+                confirmButtonColor: '#6c757d'
+            });
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No Data Available',
+                text: 'No sensor data found for this plot'
+            });
         }
     } catch (error) {
         console.error('Error loading plot details:', error);
-        alert('Failed to load plot details');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load plot details'
+        });
     }
 }
 
@@ -282,6 +369,11 @@ function displaySampleUsers() {
 
 function displayUsersTable(users) {
     const tbody = document.getElementById('users-table-body');
+    
+    // Skip if element doesn't exist (e.g., on dashboard page without user table)
+    if (!tbody) {
+        return;
+    }
     
     if (!users || users.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No users found</td></tr>';

@@ -215,6 +215,52 @@ router.put('/profile', authMiddleware, authController.updateProfile);
 
 /**
  * @swagger
+ * /api/auth/profile-picture:
+ *   put:
+ *     summary: Upload profile picture
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 description: Base64 encoded image
+ *     responses:
+ *       200:
+ *         description: Profile picture updated
+ *       400:
+ *         description: Invalid image data
+ *       401:
+ *         description: Unauthorized
+ */
+router.put('/profile-picture', authMiddleware, authController.updateProfilePicture);
+
+/**
+ * @swagger
+ * /api/auth/profile-picture:
+ *   delete:
+ *     summary: Remove profile picture
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile picture removed
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete('/profile-picture', authMiddleware, authController.removeProfilePicture);
+
+/**
+ * @swagger
  * /api/auth/account:
  *   delete:
  *     summary: Delete own account (requires password confirmation)

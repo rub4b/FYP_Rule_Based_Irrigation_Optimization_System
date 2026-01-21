@@ -10,6 +10,160 @@ if (!user) {
 // Logout handler
 document.getElementById('logoutBtn').addEventListener('click', logout);
 
+// Profile picture elements
+const profilePicturePreview = document.getElementById('profilePicturePreview');
+const profilePictureInput = document.getElementById('profilePictureInput');
+const uploadOverlay = document.getElementById('uploadOverlay');
+const removePhotoBtn = document.getElementById('removePhotoBtn');
+
+// Handle profile picture upload click
+uploadOverlay.addEventListener('click', () => {
+    profilePictureInput.click();
+});
+
+// Handle profile picture selection
+profilePictureInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid File',
+            text: 'Please select an image file'
+        });
+        return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        Swal.fire({
+            icon: 'error',
+            title: 'File Too Large',
+            text: 'Image size should be less than 5MB'
+        });
+        return;
+    }
+    
+    // Convert to base64 and preview
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const base64Image = e.target.result;
+        
+        // Update preview
+        profilePicturePreview.innerHTML = `<img src="${base64Image}" alt="Profile">`;
+        removePhotoBtn.style.display = 'block';
+        
+        // Upload to server
+        await uploadProfilePicture(base64Image);
+    };
+    reader.readAsDataURL(file);
+});
+
+// Upload profile picture to server
+async function uploadProfilePicture(base64Image) {
+    try {
+        const token = getToken();
+        const response = await fetch(`${API_BASE_URL}/auth/profile-picture`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ profilePicture: base64Image })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to upload profile picture');
+        }
+        
+        // Update user data in storage
+        const storage = localStorage.getItem('rememberMe') === 'true' ? localStorage : sessionStorage;
+        const userData = JSON.parse(storage.getItem('user'));
+        if (userData) {
+            userData.profilePicture = base64Image;
+            storage.setItem('user', JSON.stringify(userData));
+        }
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: 'Profile picture updated successfully',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    } catch (error) {
+        console.error('Error uploading profile picture:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Upload Failed',
+            text: error.message || 'Failed to upload profile picture'
+        });
+    }
+}
+
+// Remove profile picture
+removePhotoBtn.addEventListener('click', async () => {
+    const result = await Swal.fire({
+        title: 'Remove Profile Picture?',
+        text: 'Are you sure you want to remove your profile picture?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, remove it'
+    });
+    
+    if (result.isConfirmed) {
+        try {
+            const token = getToken();
+            const response = await fetch(`${API_BASE_URL}/auth/profile-picture`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to remove profile picture');
+            }
+            
+            // Update user data in storage
+            const storage = localStorage.getItem('rememberMe') === 'true' ? localStorage : sessionStorage;
+            const userData = JSON.parse(storage.getItem('user'));
+            if (userData) {
+                userData.profilePicture = null;
+                storage.setItem('user', JSON.stringify(userData));
+            }
+            
+            // Reset to default
+            profilePicturePreview.innerHTML = '<i class="fas fa-user fa-3x"></i>';
+            removePhotoBtn.style.display = 'none';
+            profilePictureInput.value = '';
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Removed!',
+                text: 'Profile picture has been removed',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error removing profile picture:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Failed to remove profile picture'
+            });
+        }
+    }
+});
+
 // Cancel button handler
 const cancelBtn = document.getElementById('cancelBtn');
 if (cancelBtn) {
@@ -34,6 +188,15 @@ function populateUserCard(userData) {
     const profileNameDisplay = document.getElementById('profile-name-display');
     if (profileNameDisplay) {
         profileNameDisplay.textContent = userData.name || userData.username || 'User';
+    }
+    
+    // Set profile picture
+    if (userData.profilePicture) {
+        profilePicturePreview.innerHTML = `<img src="${userData.profilePicture}" alt="Profile">`;
+        removePhotoBtn.style.display = 'block';
+    } else {
+        profilePicturePreview.innerHTML = '<i class="fas fa-user fa-3x"></i>';
+        removePhotoBtn.style.display = 'none';
     }
     
     // Set joined year
@@ -222,18 +385,27 @@ profileForm.addEventListener('submit', async (e) => {
             document.getElementById('confirm-password').value = '';
             
             // Update local storage if username changed
-            const currentUser = getCurrentUser();
-            if (currentUser && data.user.username !== currentUser.username) {
-                currentUser.username = data.user.username;
-                if (data.user.email) {
-                    currentUser.email = data.user.email;
+            const storage = localStorage.getItem('rememberMe') === 'true' ? localStorage : sessionStorage;
+            const currentUser = JSON.parse(storage.getItem('user'));
+            if (currentUser) {
+                // Preserve profilePicture from current storage
+                const existingProfilePicture = currentUser.profilePicture;
+                
+                // Update user data with response
+                Object.assign(currentUser, data.user);
+                
+                // Restore profilePicture if it's not in the response
+                if (!data.user.profilePicture && existingProfilePicture) {
+                    currentUser.profilePicture = existingProfilePicture;
                 }
-                localStorage.setItem('user', JSON.stringify(currentUser));
+                
+                storage.setItem('user', JSON.stringify(currentUser));
             }
             
-            // Update user identity card
-            populateUserCard(data.user);
-            populateFormFields(data.user);
+            // Update user identity card (get fresh user from storage to include profilePicture)
+            const updatedUser = JSON.parse(storage.getItem('user'));
+            populateUserCard(updatedUser);
+            populateFormFields(updatedUser);
             
             // Scroll to message
             profileMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

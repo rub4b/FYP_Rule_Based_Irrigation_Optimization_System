@@ -5,7 +5,7 @@ const systemSettingsSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['IRRIGATION', 'WEATHER', 'NOTIFICATIONS', 'SYSTEM']
+    enum: ['IRRIGATION', 'WEATHER', 'NOTIFICATIONS', 'SYSTEM', 'COSTS']
   },
   settings: {
     type: mongoose.Schema.Types.Mixed,

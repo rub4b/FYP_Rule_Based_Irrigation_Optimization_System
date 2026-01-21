@@ -93,24 +93,31 @@ exports.updateCostParameters = async (req, res, next) => {
     }
 
     const { dieselCostPerLiter, electricityCostPerKwh, pumpPowerKw, laborCostPerHour } = req.body;
+    
+    console.log('Received cost parameters:', { dieselCostPerLiter, electricityCostPerKwh, pumpPowerKw, laborCostPerHour });
 
-    // Validate inputs
-    if (dieselCostPerLiter !== undefined && (isNaN(dieselCostPerLiter) || dieselCostPerLiter < 0)) {
+    // Validate inputs - convert to number first
+    const diesel = parseFloat(dieselCostPerLiter);
+    const electricity = parseFloat(electricityCostPerKwh);
+    const pump = parseFloat(pumpPowerKw);
+    const labor = parseFloat(laborCostPerHour);
+
+    if (dieselCostPerLiter !== undefined && (isNaN(diesel) || diesel < 0)) {
       const error = new Error('Invalid diesel cost value');
       error.statusCode = 400;
       throw error;
     }
-    if (electricityCostPerKwh !== undefined && (isNaN(electricityCostPerKwh) || electricityCostPerKwh < 0)) {
+    if (electricityCostPerKwh !== undefined && (isNaN(electricity) || electricity < 0)) {
       const error = new Error('Invalid electricity cost value');
       error.statusCode = 400;
       throw error;
     }
-    if (pumpPowerKw !== undefined && (isNaN(pumpPowerKw) || pumpPowerKw <= 0)) {
+    if (pumpPowerKw !== undefined && (isNaN(pump) || pump <= 0)) {
       const error = new Error('Invalid pump power value');
       error.statusCode = 400;
       throw error;
     }
-    if (laborCostPerHour !== undefined && (isNaN(laborCostPerHour) || laborCostPerHour < 0)) {
+    if (laborCostPerHour !== undefined && (isNaN(labor) || labor < 0)) {
       const error = new Error('Invalid labor cost value');
       error.statusCode = 400;
       throw error;
@@ -128,10 +135,10 @@ exports.updateCostParameters = async (req, res, next) => {
     }
 
     // Update only provided values
-    if (dieselCostPerLiter !== undefined) settings.settings.dieselCostPerLiter = parseFloat(dieselCostPerLiter);
-    if (electricityCostPerKwh !== undefined) settings.settings.electricityCostPerKwh = parseFloat(electricityCostPerKwh);
-    if (pumpPowerKw !== undefined) settings.settings.pumpPowerKw = parseFloat(pumpPowerKw);
-    if (laborCostPerHour !== undefined) settings.settings.laborCostPerHour = parseFloat(laborCostPerHour);
+    if (dieselCostPerLiter !== undefined) settings.settings.dieselCostPerLiter = diesel;
+    if (electricityCostPerKwh !== undefined) settings.settings.electricityCostPerKwh = electricity;
+    if (pumpPowerKw !== undefined) settings.settings.pumpPowerKw = pump;
+    if (laborCostPerHour !== undefined) settings.settings.laborCostPerHour = labor;
     
     settings.updated_by = req.user.userId;
     settings.updated_at = Date.now();
